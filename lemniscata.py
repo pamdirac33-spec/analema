@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import math
 import folium
 from streamlit_folium import st_folium
+import time
 
 # ---------------------------------------------------------
 # CONFIGURACIÓN GENERAL
@@ -130,19 +131,71 @@ with tab1:
 # TAB 2 – ANALEMA ANIMADA POR HORAS
 # ---------------------------------------------------------
 with tab2:
-    st.markdown("<div class='card'><h2>🌞 Analema por hora</h2></div>", unsafe_allow_html=True)
+    st.markdown("<div class='card'><h2>🌞 Evolución del analema por horas (superpuesta)</h2></div>", unsafe_allow_html=True)
 
-    df = generar_analema(lat, lon, year, hora)
+    # Contenedor vacío donde se irá actualizando la figura
+    grafica_animada = st.empty()
+
+    # Botón de animación
+    if st.button("▶ Reproducir animación superpuesta"):
+        plt.style.use("seaborn-v0_8-darkgrid")
+        fig, ax = plt.subplots(figsize=(6, 6))
+
+        ax.set_xlabel("Azimuth (°)", fontsize=14)
+        ax.set_ylabel("Elevación (°)", fontsize=14)
+        ax.set_title(f"Evolución del analema por horas – {year}", fontsize=18)
+
+        # 24 colores distintos
+        colores = plt.cm.viridis([i/24 for i in range(24)])
+
+        # Animación incremental: cada curva se añade sobre la misma figura
+        for h in range(24):
+            df_h = generar_analema(lat, lon, year, h)
+
+            ax.plot(
+                df_h["azim"],
+                df_h["elev"],
+                linewidth=1.0,
+                color=colores[h],
+                label=f"{h}:00"
+            )
+
+            grafica_animada.pyplot(fig)   # actualiza la MISMA figura
+            time.sleep(0.1)               # 0.1 segundo entre curvas
+
+        # Leyenda a la derecha
+        ax.legend(
+            fontsize=10,
+            loc='center left',
+            bbox_to_anchor=(1, 0.5)
+        )
+
+        grafica_animada.pyplot(fig)       # figura final con todas las curvas
+
+    # --- Gráfica estática para una hora concreta ---
+    hora_anim = st.slider("Hora para visualizar manualmente", 0, 23, 12)
+
+    df_manual = generar_analema(lat, lon, year, hora_anim)
 
     plt.style.use("seaborn-v0_8-darkgrid")
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig_manual, ax_manual = plt.subplots(figsize=(6, 6))
 
-    ax.plot(df["azim"], df["elev"], linewidth=1.0, color="orange")
-    ax.set_xlabel("Azimuth (°)", fontsize=14)
-    ax.set_ylabel("Elevación (°)", fontsize=14)
-    ax.set_title(f"Analema – {hora}:00 h – {year}", fontsize=18)
+    scatter_manual = ax_manual.scatter(
+        df_manual["azim"],
+        df_manual["elev"],
+        c=df_manual.index,
+        cmap="plasma",
+        s=12
+    )
 
-    st.pyplot(fig)
+    ax_manual.set_xlabel("Azimuth (°)", fontsize=14)
+    ax_manual.set_ylabel("Elevación (°)", fontsize=14)
+    ax_manual.set_title(f"Analema – {hora_anim}:00 h – {year}", fontsize=18)
+
+    cbar_manual = plt.colorbar(scatter_manual, ax=ax_manual)
+    cbar_manual.set_label("Día del año", fontsize=12)
+
+    st.pyplot(fig_manual)
 
 # ---------------------------------------------------------
 # TAB 3 – COMPARACIÓN ENTRE CIUDADES
@@ -150,20 +203,22 @@ with tab2:
 with tab3:
     st.markdown("<div class='card'><h2>📊 Comparación de analemas por ciudades</h2></div>", unsafe_allow_html=True)
 
-    ciudades = st.text_area("Introduce ciudades separadas por comas:", "Ingolstadt, Valladolid, El Cairo")
+    ciudades = st.text_area("Introduce ciudades separadas por comas:", "Ingolstadt, Madrid, Buenos Aires")
     lista = [c.strip() for c in ciudades.split(",") if c.strip()]
 
     plt.style.use("seaborn-v0_8-darkgrid")
     fig, ax = plt.subplots(figsize=(6, 6))
 
-    colores = ["red", "blue", "green", "purple", "orange", "cyan"]
-
-    for i, ciudad in enumerate(lista):
+    for ciudad in lista:
         lat2, lon2 = obtener_coordenadas(ciudad)
         if lat2:
             df2 = generar_analema(lat2, lon2, year, hora)
-            ax.plot(df2["azim"], df2["elev"], linewidth=1.0,
-                    color=colores[i % len(colores)], label=ciudad)
+            scatter = ax.scatter(
+                df2["azim"],
+                df2["elev"],
+                s=12,
+                label=ciudad
+            )
 
     ax.set_xlabel("Azimuth (°)", fontsize=14)
     ax.set_ylabel("Elevación (°)", fontsize=14)
@@ -171,3 +226,4 @@ with tab3:
     ax.legend()
 
     st.pyplot(fig)
+
