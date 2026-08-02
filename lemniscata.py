@@ -499,7 +499,7 @@ with tab2:
         )
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------
 # TAB 3 – COMPARACIÓN ENTRE CIUDADES
@@ -797,7 +797,7 @@ with tab5:
         xaxis=dict(nticks=12) # Muestra etiquetas espaciadas a lo largo del año
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # 3. Paneles de información detallada debajo de la gráfica
     st.markdown("---")
