@@ -660,7 +660,6 @@ with tab4:
         tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         attr="Esri World Imagery"
     )
-
     mapa4.get_root().html.add_child(folium.Element(info_box_html))
 
     if 0 <= azim_sol <= 90:
