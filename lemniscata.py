@@ -793,15 +793,6 @@ with tab4:
             tooltip="Trayectoria solar del día"
         ).add_to(mapa4)
 
-    folium.raster_layers.TileLayer(
-        tiles="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png",
-        name="Noche",
-        attr="NASA / Stadia Maps",
-        overlay=True,
-        control=True,
-        opacity=0.5
-    ).add_to(mapa4)
-
     st_folium(mapa4, width=None, height=500, key="mapa_avanzado_tab4", returned_objects=[])
     
     st.markdown("---")
