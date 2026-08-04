@@ -802,8 +802,6 @@ with tab4:
         opacity=0.5
     ).add_to(mapa4)
 
-    folium.LayerControl().add_to(mapa4)
-
     st_folium(mapa4, width=None, height=500, key="mapa_avanzado_tab4", returned_objects=[])
     
     st.markdown("---")
