@@ -205,26 +205,6 @@ if "lat" in params and "lon" in params:
     except ValueError:
         pass
 
-coords = streamlit_js_eval(
-    js_expressions="JSON.stringify(window.streamlitReceivedMessage)",
-    key="coords_eval"
-)
-
-if coords:
-    try:
-        data = eval(coords)
-        if data and "lat" in data and "lon" in data:
-            if data["lat"] != st.session_state.lat or data["lon"] != st.session_state.lon:
-                st.session_state.lat = data["lat"]
-                st.session_state.lon = data["lon"]
-                st.session_state.poblacion = obtener_nombre_por_coordenadas(
-                    st.session_state.lat,
-                    st.session_state.lon
-                )
-                st.rerun()
-    except Exception:
-        pass
-
 if "lat_comp" not in st.session_state:
     st.session_state.lat_comp = 41.6333
     st.session_state.lon_comp = -4.7167
