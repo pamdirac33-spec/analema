@@ -832,7 +832,7 @@ with tab4:
             tooltip="Trayectoria solar del día seleccionado"
         ).add_to(mapa4)
 
-    st_folium(mapa4, height=1000, key="mapa_avanzado_tab4", returned_objects=[])
+    st_folium(mapa4, width="100%", height=1000, key="mapa_avanzado_tab4", returned_objects=[])
 
 
     # ---------------------------------------------------------
@@ -966,7 +966,7 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(mapa_animado)
 
-        st_folium(mapa_animado, height=700, key="mapa_animado_integrado_tab4", returned_objects=[])
+        st_folium(mapa_animado, width="100%", height=700, key="mapa_animado_integrado_tab4", returned_objects=[])
 
     # Ejecución del fragmento aislado
     render_mapa_animado_acumulado()
@@ -1209,7 +1209,7 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(mapa_domo)
 
-        st_folium(mapa_domo, height=700, key="mapa_domo_polar_tab4", returned_objects=[])
+        st_folium(mapa_domo, width="100%", height=700, key="mapa_domo_polar_tab4", returned_objects=[])
 
     render_mapa_domo_polar()
     
