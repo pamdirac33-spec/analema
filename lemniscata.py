@@ -1456,31 +1456,41 @@ with tab5:
     stats_1 = calcular_estadisticas(fechas_dt, amanecer_1, atardecer_1)
     stats_2 = calcular_estadisticas(fechas_dt, amanecer_2, atardecer_2)
 
+    # Precomputar los textos de hover de forma segura con bucles de Python estándar
+    hover_am_1 = [f"Fecha: {x}<br>Amanecer: {decimal_a_hhmmss(val)}<extra></extra>" for x, val in zip(fechas_str, amanecer_1)]
+    hover_at_1 = [f"Fecha: {x}<br>Atardecer: {decimal_a_hhmmss(val)}<extra></extra>" for x, val in zip(fechas_str, atardecer_1)]
+    hover_am_2 = [f"Fecha: {x}<br>Amanecer: {decimal_a_hhmmss(val)}<extra></extra>" for x, val in zip(fechas_str, amanecer_2)]
+    hover_at_2 = [f"Fecha: {x}<br>Atardecer: {decimal_a_hhmmss(val)}<extra></extra>" for x, val in zip(fechas_str, atardecer_2)]
+
     fig = go.Figure()
 
     fig.add_trace(go.Scatter(
         x=fechas_str, y=amanecer_1, mode='lines', 
         name=f'Amanecer - {st.session_state.poblacion}', 
         line=dict(color='orange', width=2),
-        hovertemplate="Fecha: %{x}<br>Amanecer: " + np.vectorize(decimal_a_hhmmss)(amanecer_1) + "<extra></extra>"
+        text=hover_am_1,
+        hovertemplate="%{text}"
     ))
     fig.add_trace(go.Scatter(
         x=fechas_str, y=atardecer_1, mode='lines', 
         name=f'Atardecer - {st.session_state.poblacion}', 
         line=dict(color='darkorange', width=2),
-        hovertemplate="Fecha: %{x}<br>Atardecer: " + np.vectorize(decimal_a_hhmmss)(atardecer_1) + "<extra></extra>"
+        text=hover_at_1,
+        hovertemplate="%{text}"
     ))
     fig.add_trace(go.Scatter(
         x=fechas_str, y=amanecer_2, mode='lines', 
         name=f'Amanecer - {st.session_state.poblacion_comp}', 
         line=dict(color='deepskyblue', width=2, dash='dash'),
-        hovertemplate="Fecha: %{x}<br>Amanecer: " + np.vectorize(decimal_a_hhmmss)(amanecer_2) + "<extra></extra>"
+        text=hover_am_2,
+        hovertemplate="%{text}"
     ))
     fig.add_trace(go.Scatter(
         x=fechas_str, y=atardecer_2, mode='lines', 
         name=f'Atardecer - {st.session_state.poblacion_comp}', 
         line=dict(color='blue', width=2, dash='dash'),
-        hovertemplate="Fecha: %{x}<br>Atardecer: " + np.vectorize(decimal_a_hhmmss)(atardecer_2) + "<extra></extra>"
+        text=hover_at_2,
+        hovertemplate="%{text}"
     ))
 
     fig.update_layout(
