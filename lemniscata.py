@@ -224,7 +224,7 @@ if "lat_comp" not in st.session_state:
 # ---------------------------------------------------------
 # BARRA LATERAL FIJA
 # ---------------------------------------------------------
-st.sidebar.success("📍 Ubicación seleccionada")
+st.sidebar.success("📍 Selected Location")
     
 ahora_utc_sidebar = datetime.now(pytz.utc)
 es_dst_sidebar = es_horario_verano(datetime.now(), st.session_state.lon)
@@ -234,11 +234,11 @@ ahora_local_sidebar = ahora_utc_sidebar + timedelta(hours=offset_sidebar)
 
 st.sidebar.markdown(
     f"""
-**Ciudad:** {st.session_state.poblacion}  
+**City:** {st.session_state.poblacion}  
 **Lat:** {st.session_state.lat:.5f}  
 **Lon:** {st.session_state.lon:.5f}  
-**Hora Local:** {ahora_local_sidebar.strftime('%H:%M:%S')}  
-**Hora UTC:** {ahora_utc_sidebar.strftime('%H:%M:%S')}
+**Local Time:** {ahora_local_sidebar.strftime('%H:%M:%S')}  
+**UTC:** {ahora_utc_sidebar.strftime('%H:%M:%S')}
 """
 )
 
@@ -255,19 +255,19 @@ if "hora" not in st.session_state:
 st.sidebar.markdown("#### Control Temporal")
 
 # Sliders integrados en la barra lateral con las variables originales
-st.session_state.mes = st.sidebar.slider("Mes", 1, 12, st.session_state.mes, step=1)
+st.session_state.mes = st.sidebar.slider("Month", 1, 12, st.session_state.mes, step=1)
 
 import calendar
 max_dias_mes = calendar.monthrange(year, st.session_state.mes)[1]
 if st.session_state.dia > max_dias_mes:
     st.session_state.dia = max_dias_mes
 
-st.session_state.dia = st.sidebar.slider("Día del mes", 1, max_dias_mes, st.session_state.dia, step=1)
+st.session_state.dia = st.sidebar.slider("Day", 1, max_dias_mes, st.session_state.dia, step=1)
 
-st.session_state.hora = st.sidebar.slider("Hora del día", 0, 23, st.session_state.hora, key="slider_hora_global", step=1)
+st.session_state.hora = st.sidebar.slider("Time of Day", 0, 23, st.session_state.hora, key="slider_hora_global", step=1)
 hora = st.session_state.hora
 
-usar_dst_analema = st.sidebar.checkbox("Aplicar Horario de Verano (DST)", value=False, key="chk_dst_analema")
+usar_dst_analema = st.sidebar.checkbox("Apply Daylight Saving Time(DST)", value=False, key="chk_dst_analema")
 
 # Construir la fecha global unificada para el resto de pestañas a partir de los valores de la sidebar
 fecha_global = datetime(year, st.session_state.mes, st.session_state.dia)
@@ -325,12 +325,12 @@ with tab1:
 
     # Inicializar con Híbrido (Satélite con nombres) por defecto
     if "map_tile_active" not in st.session_state:
-        st.session_state.map_tile_active = "Google Híbrido"
+        st.session_state.map_tile_active = "Satellite"
 
     col_busq, col_vacio = st.columns([2, 3])
     with col_busq:
         busqueda_input = st.text_input(
-            "🔍 Buscar ciudad o lugar:", 
+            "🔍 Search City or Place:", 
             value=st.session_state.busqueda_query,
             placeholder="Ej: Madrid, Múnich, París...",
             key="input_busq_tab1_text"
@@ -362,7 +362,7 @@ with tab1:
     folium.TileLayer(
         tiles="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
         attr="Google Maps",
-        name="Google Roadmap (Calles)",
+        name="Street View",
         control=True,
         show=roadmap_checked,
         overlay=False
@@ -372,7 +372,7 @@ with tab1:
     folium.TileLayer(
         tiles="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
         attr="Google Maps Hybrid",
-        name="Google Híbrido",
+        name="Satellite",
         control=True,
         show=hybrid_checked,
         overlay=False
