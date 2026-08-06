@@ -144,6 +144,13 @@ def generar_analema(lat, lon, year, hora_utc):
     return pd.DataFrame({"fecha": fechas, "elev": elevaciones, "azim": azimuths})
 
 def calcular_curvas_solares(lat, lon, usar_dst=True):
+    # Asegurar que lat y lon son numéricos
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError):
+        lat, lon = 48.77568, 11.48840
+
     dias = np.arange(1, 366)
     amanecer_horas = []
     atardecer_horas = []
@@ -162,8 +169,9 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
                 0.006758 * np.cos(2 * gamma) - 0.000907 * np.sin(2 * gamma) - 
                 0.002697 * np.cos(3 * gamma) + 0.00148 * np.sin(3 * gamma))
         
-        cos_ha = (np.cos(np.radians(90.833)) / (np.cos(lat_rad) * np.cos(decl))) - (np.tan(lat_rad) * np.tan(decl))
-        cos_ha = np.clip(cos_ha, -1.0, 1.0)
+        # Evitar errores de dominio en arccos asegurando límites estrictos
+        val_cos = (np.cos(np.radians(90.833)) / (np.cos(lat_rad) * np.cos(decl))) - (np.tan(lat_rad) * np.tan(decl))
+        cos_ha = np.clip(val_cos, -1.0, 1.0)
         ha = np.degrees(np.arccos(cos_ha))
         
         mediodia_utc_minutos = 720 - (4 * lon) - eqtime
