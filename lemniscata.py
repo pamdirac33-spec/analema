@@ -435,12 +435,10 @@ with tab1:
 # TAB 2 – ANALEMA ANIMADA POR HORAS (UTC)
 # ---------------------------------------------------------
 with tab2:
-    st.markdown("<div class='card-minimal'><h2>Evolución analema por horas UTC</h2></div>", unsafe_allow_html=True)
-
-    mostrar_todas_analemas = st.checkbox("Mostrar todas las analemas horarias UTC a la vez", value=False, key="chk_todas_analemas")
+    mostrar_todas_analemas = st.checkbox("Show all Analemas - UTC", value=False, key="chk_todas_analemas")
 
     analemas = []
-    meses_es = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    meses_es = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     
     for h in range(4, 23):
         df_h = generar_analema(st.session_state.lat, st.session_state.lon, year, h).copy()
@@ -459,8 +457,8 @@ with tab2:
         animation_frame="hora",
         labels={
             "azim": "Azimuth (°)",
-            "elev": "Elevación (°)",
-            "hora": "Hora UTC"
+            "elev": "Elevation (°)",
+            "hora": "UTC Time"
         }
     )
 
@@ -507,7 +505,11 @@ with tab2:
         80: ("Spring Equinox", "green"),
         172: ("Summer Solstice", "red"),
         266: ("Autumn Equinox", "orange"),
-        355: ("Winter Solstice", "blue")
+        355: ("Winter Solstice", "blue"),
+        111: ("21 April - Aug", "purple"),
+        52: ("21 Feb - Oct", "brown"),
+        21: ("21 Jan - Nov", "pink"),
+        141: ("21 May - Jul", "olive")
     }
 
     for dia_idx, (nombre_hito_en, color_hito) in dias_clave_lineas.items():
@@ -520,31 +522,96 @@ with tab2:
         if df_dia_completo:
             df_dia_df = pd.DataFrame(df_dia_completo)
             fig.add_trace(go.Scatter(
-                x=df_dia_df["azim"], y=df_dia_df["elev"], mode="lines",
-                line=dict(color=color_hito, width=1, dash="dash"),
+                x=df_dia_df["azim"],
+                y=df_dia_df["elev"],
+                mode="lines",
+                line=dict(color=color_hito, width=0.5, dash="dash"),
                 name=nombre_hito_en,
                 hovertemplate=f"<b>{nombre_hito_en}</b><br>Azimuth: %{{x:.2f}}°<br>Elevation: %{{y:.2f}}°<extra></extra>"
             ))
 
-    fig.update_layout(
-        height=600,
+    ## Grey zone when elevatgion < 0° 
+    fig.add_shape(
+        type="rect",
+        xref="paper", yref="y",
+        x0=0, x1=1,          # Cubre todo el ancho del gráfico
+        y0=-90, y1=0,        # Desde -90° hasta 0°
+        fillcolor="rgba(128, 128, 128, 0.2)", # Color gris con transparencia
+        line_width=0,
+        layer="below"        # Asegura que esté detrás de las líneas del analema
+    )
+
+    # Mapeo de azimut a etiquetas
+    marcas_azimut = {
+        0: "N", 45: "NE", 90: "E", 135: "SE", 
+        180: "S", 225: "SW", 270: "W", 315: "NW"
+    }
+
+    # Añadir líneas verticales más oscuras
+    for grado, etiqueta in marcas_azimut.items():
+        # Línea vertical
+        fig.add_shape(
+            type="line",
+            x0=grado, x1=grado,
+            y0=-10, y1=90, # Extensión vertical del gráfico
+            line=dict(color="gray", width=1.5), # Más oscuro que el grid normal
+            layer="below"
+        )
+        
+        # Etiqueta sin fondo
+        fig.add_annotation(
+            x=grado,
+            y=92, # Colocamos la etiqueta justo encima del área de datos
+            text=etiqueta,
+            showarrow=False,
+            font=dict(size=12, color="black"),
+            bgcolor=None # Asegura que no tenga fondo
+        )
+    
+        fig.update_layout(
+        height=550,
         plot_bgcolor="#f7f7f7",
         paper_bgcolor="#f7f7f7",
         font=dict(size=13, color="#333"),
-        title=dict(
-            text="Evolución analema por horas UTC con Solsticios y Equinoccios",
-            x=0, xanchor="left", font=dict(size=18, family="sans-serif")
+        
+        # Eje X: Grid normal cada 10° + tus nuevas líneas maestras
+        xaxis=dict(
+            title="Azimuth (°)",
+            tickmode='linear',
+            dtick=10,
+            gridcolor='rgba(200, 200, 200, 0.3)',
+            range=[0, 360]
         ),
-        showlegend=True
+        
+        # Eje Y: Grid cada 5°
+        yaxis=dict(
+            title="Elevation (°)",
+            tickmode='linear',
+            dtick=5,
+            gridcolor='rgba(200, 200, 200, 0.5)',
+            range=[-10, 90]
+        ),
+        
+        showlegend=True,
+        legend=dict(
+            orientation="v",       # Leyenda horizontal
+            yanchor="top",         # Anclaje superior
+            y=0.99,                # Posición vertical (cerca del techo)
+            xanchor="right",        # Anclaje izquierdo
+            x=0.99,                # Posición horizontal (cerca del margen izquierdo)
+            bgcolor="rgba(255, 255, 255, 0.6)", # Fondo ligeramente transparente para que no moleste
+            bordercolor="lightgray",
+            borderwidth=1
+        ),
+        margin=dict(l=40, r=40, t=80, b=40) # Ajusta el margen superior 't' si el título choca
     )
-
     st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------
 # TAB 3 – COMPARACIÓN ENTRE CIUDADES (UTC)
 # ---------------------------------------------------------
 with tab3:
-    st.markdown("<div class='card-minimal'><h2>Comparación de analemas por ciudades (UTC)</h2></div>", unsafe_allow_html=True)
+    st.markdown("<div class='card-minimal'><h2>Analemas Comparison by Cities (UTC)</h2></div>", unsafe_allow_html=True)
     
     col_input, col_btn, col_espacio = st.columns([2.5, 0.8, 3.7])
     with col_input:
@@ -557,10 +624,14 @@ with tab3:
     colores_ciudades = px.colors.qualitative.Bold
     
     dias_clave = {
-        80: ("Equinoccio de Primavera", "green"),
-        172: ("Solsticio de Verano", "red"),
-        266: ("Equinoccio de Otoño", "orange"),
-        355: ("Solsticio de Invierno", "blue")
+        80: ("Spring Equinox", "green"),
+        172: ("Summer Solstice", "red"),
+        266: ("Autumn Equinox", "orange"),
+        355: ("Winter Solstice", "blue"),
+        111: ("21 April - Aug", "purple"),
+        52: ("21 Feb - Oct", "brown"),
+        21: ("21 Jan - Nov", "pink"),
+        141: ("21 May - Jul", "olive")
     }
 
     # Dos flechas por analema (días 100 y 280 del año)
@@ -579,7 +650,7 @@ with tab3:
             
             fig_tab3.add_trace(go.Scatter(
                 x=df2["azim"], y=df2["elev"], mode="lines",
-                line=dict(color=color_ciudad, width=2),
+                line=dict(color=color_ciudad, width=0.5),
                 name=ciudad, legendgroup=ciudad,
                 hovertemplate=f"<b>{ciudad}</b><br>Azimuth: %{{x:.2f}}°<br>Elevación: %{{y:.2f}}°"
             ))
