@@ -317,7 +317,7 @@ st.markdown(
     </style>
     <div class='card-minimal' style='text-align: center; justify-content: center;'>
         <h1 style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-            <span class='sun-animated'>☀️</span> Analema Solar Interactiva (UTC)
+            <span class='sun-animated'>☀️</span> Interactive Solar Analema
         </h1>
     </div>
     """,
@@ -657,7 +657,7 @@ with tab3:
     fecha_sel_dt = pd.to_datetime(f"{year}-01-01") + pd.Timedelta(days=dia_del_ano_tab3 - 1)
     date_val_tab3 = fecha_sel_dt.strftime("%d.%m.%Y")
     fecha_sel_str = fecha_sel_dt.strftime("%d.%m.%Y")
-    st.caption(f"📅 Selected Date: **{fecha_sel_str}** (Day {dia_del_ano_tab3}) — *Usa los controles de reproducción o el deslizador inferior para cambiar la hora UTC.*")
+    st.caption(f"📅 Selected Date: **{fecha_sel_str}** (Day {dia_del_ano_tab3}) — *Use the bottom slider to change the UTC time.*")
 
     fecha_tab3 = fecha_sel_dt.to_pydatetime()
     
