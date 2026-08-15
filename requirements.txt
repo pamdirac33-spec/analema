@@ -8,3 +8,4 @@ folium==0.16.0
 streamlit-folium==0.22.1
 streamlit-js-eval==0.1.7
 pytz==2024.1
+timezonefinder==6.5.0

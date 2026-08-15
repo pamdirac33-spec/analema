@@ -15,6 +15,7 @@ import time
 import streamlit.components.v1 as components
 from streamlit_js_eval import streamlit_js_eval
 import pytz
+from timezonefinder import TimezoneFinder
 
 # ---------------------------------------------------------
 # CONFIGURACIÓN GENERAL
@@ -147,6 +148,18 @@ def generar_analema(lat, lon, year, hora_utc):
         azimuths.append(azim)
     return pd.DataFrame({"fecha": fechas, "elev": elevaciones, "azim": azimuths})
 
+tf = TimezoneFinder()
+
+def obtener_tz_dinamica(lat, lon):
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError):
+        return pytz.utc
+        
+    tz_str = tf.timezone_at(lat=lat, lng=lon)
+    return pytz.timezone(tz_str) if tz_str else pytz.utc
+
 def calcular_curvas_solares(lat, lon, usar_dst=True):
     # Asegurar que lat y lon son numéricos
     try:
@@ -155,15 +168,26 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
     except (TypeError, ValueError):
         lat, lon = 48.77568, 11.48840
 
+    # Obtener la zona horaria real basada en las coordenadas
+    tz_str = tf.timezone_at(lat=lat, lng=lon)
+    local_tz = pytz.timezone(tz_str) if tz_str else pytz.utc
+
     dias = np.arange(1, 366)
     amanecer_horas = []
     atardecer_horas = []
     lat_rad = np.radians(lat)
-    huso_base = int(round(lon / 15.0))
 
     for dia in dias:
         fecha_actual = datetime(2026, 1, 1) + timedelta(days=int(dia) - 1)
-        es_dst_activo = es_horario_verano(fecha_actual, lon) if usar_dst else False
+        
+        # Obtener el offset exacto en horas usando pytz (maneja DST automáticamente si usar_dst=True)
+        if usar_dst:
+            localized_dt = local_tz.localize(fecha_actual, is_dst=None)
+            offset_horas = localized_dt.utcoffset().total_seconds() / 3600.0
+        else:
+            # Si no se usa DST, fijamos el offset estándar de invierno (enero)
+            localized_dt = local_tz.localize(datetime(fecha_actual.year, 1, 1), is_dst=False)
+            offset_horas = localized_dt.utcoffset().total_seconds() / 3600.0
 
         gamma = 2.0 * np.pi * (dia - 1) / 365.0
         eqtime = 229.18 * (0.000075 + 0.001868 * np.cos(gamma) - 0.032077 * np.sin(gamma) - 
@@ -182,9 +206,9 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
         amanecer_utc_min = mediodia_utc_minutos - (ha * 4)
         atardecer_utc_min = mediodia_utc_minutos + (ha * 4)
         
-        offset_total = huso_base + (1 if es_dst_activo else 0)
-        h_amanecer = (amanecer_utc_min / 60.0) + offset_total
-        h_atardecer = (atardecer_utc_min / 60.0) + offset_total
+        # Aplicar el offset real de la zona horaria en lugar de la aproximación por longitud
+        h_amanecer = (amanecer_utc_min / 60.0) + offset_horas
+        h_atardecer = (atardecer_utc_min / 60.0) + offset_horas
             
         amanecer_horas.append(h_amanecer % 24)
         atardecer_horas.append(h_atardecer % 24)
@@ -225,6 +249,17 @@ if "lat_comp" not in st.session_state:
 # ---------------------------------------------------------
 # BARRA LATERAL FIJA
 # ---------------------------------------------------------
+st.markdown(
+    """
+    <style>
+        [data-testid="stSidebar"] {
+            min-width: 50px !important;
+            max-width: 250px !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 st.sidebar.success("📍 Selected Location")
     
 ahora_utc_sidebar = datetime.now(pytz.utc)
@@ -507,12 +542,13 @@ with tab2:
         21: ("21 Jan-Nov", "pink"), 141: ("21 May-Jul", "olive")
     }
 
+    # Renderizar días clave
     for dia_idx, (nombre, color) in dias_clave_lineas.items():
         df_dia = pd.DataFrame([df_all[df_all["hora"] == h].iloc[dia_idx] for h in range(0, 24) if dia_idx < 365])
         if not df_dia.empty:
             fig.add_trace(go.Scatter(
                 x=df_dia["azim"], y=df_dia["elev"], mode="lines",
-                line=dict(color=color, width=0.6, dash="dash"),
+                line=dict(color=color, width=0.4, dash="dash"),
                 name=nombre,
                 hovertemplate=formato_hover_unificado,
                 customdata=df_dia[["hora", "fecha_str"]],
@@ -543,6 +579,31 @@ with tab2:
             visible=True
         )
 
+    # -------------------------------------------------------------
+    # CURVA PUNTEADA MAGENTA PARA EL DÍA ACTUAL
+    # -------------------------------------------------------------
+    dia_actual_idx = dia_del_ano_actual - 1
+    if 0 <= dia_actual_idx < 365:
+        df_dia_actual = pd.DataFrame([df_all[df_all["hora"] == h].iloc[dia_actual_idx] for h in range(0, 24)])
+        if not df_dia_actual.empty:
+            fecha_hoy_str = df_dia_actual.iloc[0]["fecha_str"]
+            fig.add_trace(go.Scatter(
+                x=df_dia_actual["azim"], y=df_dia_actual["elev"], mode="lines",
+                line=dict(color="magenta", width=0.4, dash="dash"),
+                name=f"Today ({fecha_hoy_str})",
+                hovertemplate=formato_hover_unificado,
+                customdata=df_dia_actual[["hora", "fecha_str"]],
+                showlegend=False
+            ))
+            
+            df_visible_hoy = df_dia_actual[df_dia_actual["elev"] > 0]
+            punto_etiqueta_hoy = df_visible_hoy.iloc[-1] if not df_visible_hoy.empty else df_dia_actual.iloc[len(df_dia_actual)//2]
+            fig.add_annotation(
+                x=punto_etiqueta_hoy["azim"], y=punto_etiqueta_hoy["elev"],
+                text=f" Today ({fecha_hoy_str})", showarrow=False, font=dict(color="magenta", size=10, weight="bold"),
+                xanchor="left", xshift=5
+            )
+            
     # 7. Fondo gris para elevación negativa (< 0°)
     fig.add_shape(
         type="rect", xref="paper", yref="y",
@@ -696,7 +757,7 @@ with tab3:
         if azimuths_t:
             fig_polar.add_trace(go.Scatterpolar(
                 r=radios_t, theta=azimuths_t, mode='lines',
-                name=nombre_hito, line=dict(width=0.6, color=color_hito, dash="dash"),
+                name=nombre_hito, line=dict(width=0.4, color=color_hito, dash="dash"),
                 showlegend=False
             ))
             fig_polar.add_trace(go.Scatterpolar(
@@ -719,7 +780,7 @@ with tab3:
         fig_polar.add_trace(go.Scatterpolar(
             r=r_hoy_t, theta=az_hoy_t, mode='lines',
             name=f" ({date_val_tab3})",
-            line=dict(width=1.2, color="magenta", dash="dash"),
+            line=dict(width=0.4, color="magenta", dash="dash"),
             showlegend=False
         ))
         fig_polar.add_trace(go.Scatterpolar(
@@ -882,7 +943,7 @@ with tab3:
         if azimuths_t:
             fig_cartesiano.add_trace(go.Scatter(
                 x=azimuths_t, y=elevaciones_t, mode='lines',
-                name=nombre_hito, line=dict(width=0.6, color=color_hito, dash="dash"),
+                name=nombre_hito, line=dict(width=0.4, color=color_hito, dash="dash"),
                 showlegend=False
             ))
             
@@ -911,7 +972,7 @@ with tab3:
         fig_cartesiano.add_trace(go.Scatter(
             x=az_hoy_c, y=el_hoy_c, mode='lines',
             name=f"({date_val_tab3})",
-            line=dict(width=1.2, color="magenta", dash="dash"),
+            line=dict(width=0.4, color="magenta", dash="dash"),
             showlegend=False
         ))
         
@@ -1017,18 +1078,41 @@ with tab3:
     )]
 
     fig_cartesiano.update_layout(
-        height=680, paper_bgcolor="#f7f7f7", plot_bgcolor="#f7f7f7",
-        xaxis=dict(title="Az (°)", range=[0, 360], dtick=30),
-        yaxis=dict(title="El (°)", range=[0, 90], dtick=15),
+        height=680, 
+        paper_bgcolor="#f7f7f7", 
+        plot_bgcolor="#f7f7f7",
+        # Forzar expansión horizontal máxima reduciendo márgenes laterales
+        margin=dict(l=50, r=90, t=40, b=80), 
+        # Eje X: Puntos cardinales en lugar de solo grados numéricos
+        xaxis=dict(
+            title="Azimuth", 
+            range=[0, 360], 
+            tickvals=[0, 45, 90, 135, 180, 225, 270, 315, 360],
+            ticktext=["0° (N)", "45° (NE)", "90° (E)", "135° (SE)", "180° (S)", "225° (SW)", "270° (W)", "315° (NW)", "360° (N)"],
+            autorange=False
+        ),
+        
+        # Eje Y: Rejilla principal cada 15° y rejilla secundaria (minor) cada 5°
+        yaxis=dict(
+            title="Elevation (°)", 
+            range=[0, 90], 
+            dtick=15,          # Líneas de cuadrícula principales cada 15°
+            tick0=0,
+            minor=dict(
+                dtick=5,       # Rejilla secundaria horizontal cada 5°
+                showgrid=True,
+                gridcolor="rgba(0, 0, 0, 0.05)"  # Líneas secundarias muy tenues
+            ),
+            autorange=False
+        ),
         sliders=sliders_cart,
         updatemenus=updatemenus_cart,
         annotations=[dict(
-            text=info_text_comun, x=0.1, y=0.99, xref="paper", yref="paper",
-            align="left", showarrow=False, xanchor="right", yanchor="top",
+            text=info_text_comun, x=0.02, y=0.99, xref="paper", yref="paper",
+            align="left", showarrow=False, xanchor="left", yanchor="top",
             bgcolor="rgba(255,255,255,0.85)", bordercolor="#ccc", borderwidth=1, borderpad=6,
             font=dict(size=11, color="#222")
-        )],
-        margin=dict(l=80, r=220, t=40, b=80)
+        )]
     )
 
     st.plotly_chart(fig_cartesiano, use_container_width=True, config={"scrollZoom": True, "displayModeBar": True})
@@ -1841,13 +1925,13 @@ with tab6:
 
     ahora_utc_tab5 = datetime.now(pytz.utc)
     
-    # Obtener zonas horarias aproximadas o utilizar las locales de las ubicaciones si están disponibles
-    # (Por defecto, usamos tz_local basadas en la longitud o pytz según corresponda)
-    tz_local_1 = pytz.timezone('Europe/Berlin')  # O ajustado a la ubicación principal si se calcula dinámicamente
-    tz_local_2 = pytz.timezone('Europe/Madrid')  # O ajustado a la ubicación de comparación
-    
-    ahora_local_1 = ahora_utc_tab5.astimezone(tz_local_1)
-    ahora_local_2 = ahora_utc_tab5.astimezone(tz_local_2)
+    # Calculamos las zonas dinámicamente según las coordenadas guardadas
+    tz_local_1 = obtener_tz_dinamica(st.session_state.lat, st.session_state.lon)
+    tz_local_2 = obtener_tz_dinamica(st.session_state.lat_comp, st.session_state.lon_comp)
+
+    ahora_utc = datetime.now(pytz.utc) # Asegúrate de que esta variable esté definida
+    ahora_local_1 = ahora_utc.astimezone(tz_local_1)
+    ahora_local_2 = ahora_utc.astimezone(tz_local_2)
   
     col_info1, col_info2, col_vacia = st.columns([2, 2, 2])
     
