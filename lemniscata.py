@@ -1121,139 +1121,38 @@ with tab3:
 # TAB 4 – ANIMACIÓN Y TRAYECTORIA SOLAR CON CONTROLES COMUNES
 # ---------------------------------------------------------
 with tab4:
-    # 1. Inicialización segura de estados para los controles superiores de la Tab 4
-    if "tab4_mes" not in st.session_state:
-        st.session_state.tab4_mes = meses_es[datetime.now().month - 1]
-    if "tab4_dia" not in st.session_state:
-        st.session_state.tab4_dia = datetime.now().day
-    if "tab4_hora" not in st.session_state:
-        st.session_state.tab4_hora = datetime.now(pytz.utc).hour
+    # 1. Controles superiores (Día del Año)
+    ahora_utc_tab4 = datetime.now(pytz.utc)
+    dia_actual_t4 = ahora_utc_tab4.timetuple().tm_yday
 
-    # 2. Controles temporales comunes en la parte superior de la pestaña
-    col_t1, col_t2, col_t3, col_t4 = st.columns([2, 2, 1, 1])
-    
-    with col_t1:
-        mes_sel = st.selectbox("Month", meses_es, key="tab4_mes")
-        mes_idx = meses_es.index(mes_sel) + 1
-        
-    with col_t2:
-        max_dias = calendar.monthrange(year, mes_idx)[1]
-        if st.session_state.tab4_dia > max_dias:
-            st.session_state.tab4_dia = max_dias
-        dia_sel = st.slider("Day", 1, max_dias, key="tab4_dia")
-        
-    with col_t3:
-        hora_sel = st.number_input("Hour (UTC)", 0, 23, key="tab4_hora")
-        
-    with col_t4:
-        st.write("###")
-        if st.button("🔄 Update local time", key="btn_update_tab4"):
-            st.rerun()
+    dia_del_ano_tab4 = st.slider(
+        "Day of the Year (Step: 10 days)",
+        1,
+        365,
+        value=dia_actual_t4,
+        step=10,
+        key="tab4_dia_ano",
+    )
+    fecha_sel_dt_t4 = pd.to_datetime(f"{year}-01-01") + pd.Timedelta(
+        days=dia_del_ano_tab4 - 1
+    )
+    date_val_tab4 = fecha_sel_dt_t4.strftime("%d.%m.%Y")
+    fecha_sel_str_t4 = fecha_sel_dt_t4.strftime("%d.%m.%Y")
+    st.caption(
+        f"📅 Selected Date: **{fecha_sel_str_t4}** (Day {dia_del_ano_tab4})"
+    )
+
+    fecha_tab4 = fecha_sel_dt_t4.to_pydatetime()
+
+    # Offset y ajuste por horario de verano (DST)
+    offset_val = st.session_state.get("offset_sidebar", 1)
+    dst_activo = es_horario_verano(fecha_tab4, st.session_state.lon)
+    offset_total = offset_val + (1 if dst_activo else 0)
 
     st.divider()
-
-    # Variables de tiempo unificadas para toda la Tab 4 basadas en los controles superiores
-    fecha_tab4 = datetime(year, mes_idx, dia_sel)
-    date_val_tab4 = fecha_tab4.strftime('%Y-%m-%d')
-    hora_utc_calculada = float(hora_sel)
-
-    # Cálculo dinámico de la hora local para la Tab 4
-    h_local_tab4 = (hora_sel + offset_sidebar) % 24
-    hl_tab4 = int(h_local_tab4)
-    ml_tab4 = int(round((h_local_tab4 - hl_tab4) * 60))
-    if ml_tab4 == 60:
-        hl_tab4 = (hl_tab4 + 1) % 24
-        ml_tab4 = 0
-    
-    local_time_calculada = f"{hl_tab4:02d}:{ml_tab4:02d}:00"
-    utc_time_calculada = f"{hora_sel:02d}:00:00"
-
-    # ---------------------------------------------------------
-    # PRIMER MAPA DE LA TAB 4 (Posición del Sol y Orientación E/W)
-    # ---------------------------------------------------------
     st.markdown("### Sun Position & Orientation")
-    
-    elev_sol, azim_sol = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, hora_utc_calculada)
 
-    dist_km = 20
-    R = 6371
-
-    lat_rad = math.radians(st.session_state.lat)
-    lon_rad = math.radians(st.session_state.lon)
-    az_rad = math.radians(azim_sol)
-
-    lat_sol = math.degrees(
-        math.asin(
-            math.sin(lat_rad)*math.cos(dist_km/R) +
-            math.cos(lat_rad)*math.sin(dist_km/R)*math.cos(az_rad)
-        )
-    )
-
-    lon_sol = math.degrees(
-        lon_rad + math.atan2(
-            math.sin(az_rad)*math.sin(dist_km/R)*math.cos(lat_rad),
-            math.cos(dist_km/R) - math.sin(lat_rad)*math.sin(math.radians(lat_sol))
-        )
-    )
-
-    lat_val = f"{st.session_state.lat:.3f}°"
-    lon_val = f"{st.session_state.lon:.3f}°"
-
-    info_box_html = f"""
-        <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.85); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; line-height: 1.4; color: #222;">
-            <b>Date:</b> {date_val_tab4}<br>
-            <b>Lat:</b> {lat_val}<br>
-            <b>Lon:</b> {lon_val}<br>
-            <b>Local Time:</b> {local_time_calculada}<br>
-            <b>UTC:</b> {utc_time_calculada}
-        </div>
-        """
-    
-    mapa4 = folium.Map(
-        location=[st.session_state.lat, st.session_state.lon],
-        zoom_start=10,
-        tiles="CartoDB positron"
-    )
-
-    mapa4.get_root().html.add_child(folium.Element(info_box_html))
-
-    if 0 <= azim_sol <= 90:
-        az_ew = 90 - azim_sol
-        ref_ew = "Norte del Este"
-    elif 90 < azim_sol <= 180:
-        az_ew = azim_sol - 90
-        ref_ew = "Sur del Este"
-    elif 180 < azim_sol <= 270:
-        az_ew = 270 - azim_sol
-        ref_ew = "Sur del Oeste"
-    else:
-        az_ew = azim_sol - 270
-        ref_ew = "Norte del Oeste"
-
-    html_reticula_gigante = """
-    <div style="position: relative; width: 0px; height: 0px; overflow: visible; z-index: 100;">
-        <div style="position: absolute; width: 400px; height: 400px; left: -200px; top: -200px;
-                    background-color: rgba(255, 255, 255, 0.08);
-                    border-radius: 50%; border: 1.5px dashed rgba(150,150,150,0.5);
-                    display: flex; align-items: center; justify-content: center; pointer-events: none;">
-            <div style="position: absolute; width: 100%; height: 1px; background: rgba(150,150,150,0.35);"></div>
-            <div style="position: absolute; width: 1px; height: 100%; background: rgba(150,150,150,0.35);"></div>
-            <div style="position: absolute; width: 100%; height: 1px; background: rgba(150,150,150,0.2); transform: rotate(45deg);"></div>
-            <div style="position: absolute; width: 1px; height: 100%; background: rgba(150,150,150,0.2); transform: rotate(135deg);"></div>
-            <span style="position: absolute; top: 4px; left: 50%; transform: translateX(-50%); color: #d32f2f; font-weight: bold; font-family: sans-serif; font-size: 13px; background: rgba(255,255,255,0.8); padding: 0 3px; border-radius: 3px;">N</span>
-            <span style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); color: #d32f2f; font-weight: bold; font-family: sans-serif; font-size: 13px; background: rgba(255,255,255,0.8); padding: 0 3px; border-radius: 3px;">S</span>
-            <span style="position: absolute; top: 50%; right: 6px; transform: translateY(-50%); color: #d32f2f; font-weight: bold; font-family: sans-serif; font-size: 13px; background: rgba(255,255,255,0.8); padding: 0 3px; border-radius: 3px;">E</span>
-            <span style="position: absolute; top: 50%; left: 6px; transform: translateY(-50%); color: #d32f2f; font-weight: bold; font-family: sans-serif; font-size: 13px; background: rgba(255,255,255,0.8); padding: 0 3px; border-radius: 3px;">W</span>
-        </div>
-    </div>
-    """
-
-    folium.Marker(
-        [st.session_state.lat, st.session_state.lon],
-        popup=st.session_state.poblacion,
-        icon=folium.DivIcon(html=html_reticula_gigante, icon_size=(1, 1), icon_anchor=(0, 0))
-    ).add_to(mapa4)
-
+    # Función auxiliar global para proyecciones geodésicas
     def calcular_punto_proyectado(lat_orig, lon_orig, azim_deg, distancia_km):
         rad_lat = math.radians(lat_orig)
         rad_lon = math.radians(lon_orig)
@@ -1262,91 +1161,249 @@ with tab4:
 
         lat_dest = math.degrees(
             math.asin(
-                math.sin(rad_lat) * math.cos(distancia_km / R_earth) +
-                math.cos(rad_lat) * math.sin(distancia_km / R_earth) * math.cos(rad_az)
+                math.sin(rad_lat) * math.cos(distancia_km / R_earth)
+                + math.cos(rad_lat)
+                * math.sin(distancia_km / R_earth)
+                * math.cos(rad_az)
             )
         )
         lon_dest = math.degrees(
-            rad_lon + math.atan2(
-                math.sin(rad_az) * math.sin(distancia_km / R_earth) * math.cos(lat_rad),
-                math.cos(distancia_km / R_earth) - math.sin(rad_lat) * math.sin(math.radians(lat_dest))
+            rad_lon
+            + math.atan2(
+                math.sin(rad_az)
+                * math.sin(distancia_km / R_earth)
+                * math.cos(rad_lat),
+                math.cos(distancia_km / R_earth)
+                - math.sin(rad_lat) * math.sin(math.radians(lat_dest)),
             )
         )
-        return [lat_dest, lon_dest]
+        return lat_dest, lon_dest
+
+    lat = st.session_state.lat
+    lon = st.session_state.lon
+    poblacion = st.session_state.get("poblacion", "Ubicación")
+
+    RADIO_TRAYECTORIA_KM = 6.0
+    RADIO_CARDINALES_KM = 8.0
+
+    # Precalcular elementos estáticos que no dependen de la hora del slider
+    puntos_circulo = [
+        calcular_punto_proyectado(lat, lon, ang_c, RADIO_CARDINALES_KM)
+        for ang_c in np.linspace(0, 360, 100)
+    ]
+
+    lat_n, lon_n = calcular_punto_proyectado(lat, lon, 0, RADIO_CARDINALES_KM)
+    lat_s, lon_s = calcular_punto_proyectado(lat, lon, 180, RADIO_CARDINALES_KM)
+    lat_e, lon_e = calcular_punto_proyectado(lat, lon, 90, RADIO_CARDINALES_KM)
+    lat_o, lon_o = calcular_punto_proyectado(lat, lon, 270, RADIO_CARDINALES_KM)
+
+    card_lats = [lat_n, lat_s, lat_e, lat_o]
+    card_lons = [lon_n, lon_s, lon_e, lon_o]
+    card_texts = ["N", "S", "E", "W"]
 
     puntos_tray = []
     for h_loop in np.linspace(0, 24, 120):
-        elev_h, azim_h = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, float(h_loop))
+        elev_h, azim_h = spa(fecha_tab4, lat, lon, float(h_loop))
         if elev_h >= 0:
-            dist_h = 18.0
-            pt = calcular_punto_proyectado(st.session_state.lat, st.session_state.lon, azim_h, dist_h)
+            pt = calcular_punto_proyectado(lat, lon, azim_h, RADIO_TRAYECTORIA_KM)
             puntos_tray.append(pt)
 
-    lat_sol_p, lon_sol_p = calcular_punto_proyectado(st.session_state.lat, st.session_state.lon, azim_sol, 18.0)
-    
-    html_sol_custom = f"""
-    <div style="position: relative; width: 30px; height: 30px; background-color: rgba(255, 165, 0, 0.95);
-                border-radius: 50%; border: 2px solid #222; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-                display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; z-index: 1000;">
-        ☀️
-        <div style="position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
-                    background: rgba(0,0,0,0.8); color: white; padding: 1px 6px; border-radius: 3px;
-                    font-size: 10px; white-space: nowrap; font-weight: bold;">
-            {azim_sol:.1f}°
-        </div>
-    </div>
-    """
-
-    folium.Marker(
-        [lat_sol_p, lon_sol_p],
-        popup=folium.Popup(f"""
-        <div style="font-size: 12px; font-family: sans-serif; line-height: 1.4;">
-            <b>UTC:</b> {utc_time_calculada}<br>
-            <b>Az:</b> {azim_sol:.1f}°<br>
-            <b>El:</b> {elev_sol:.1f}°<br>
-            <b>Angle E/W:</b> {az_ew:.1f}° {ref_ew}
-        </div>
-        """, max_width=300),
-        icon=folium.DivIcon(
-            html=html_sol_custom, 
-            icon_size=(30, 30), 
-            icon_anchor=(15, 15)
+    # Fragmento interactivo: el slider y todo lo que depende de él van dentro
+    @st.fragment
+    def render_interactive_sun_map():
+        hora_utc_tab4_slider = st.slider(
+            "UTC Hour",
+            0,
+            23,
+            value=datetime.now(pytz.utc).hour,
+            step=1,
+            key="tab4_hora_utc_fragment",
         )
-    ).add_to(mapa4)
+
+        h_sel = float(hora_utc_tab4_slider)
+        elev_sol, azim_sol = spa(fecha_tab4, lat, lon, h_sel)
+
+        # Cálculo hora local
+        h_local = (h_sel + offset_total) % 24
+        hl = int(h_local)
+        ml = int(round((h_local - hl) * 60))
+        if ml == 60:
+            hl = (hl + 1) % 24
+            ml = 0
+        local_time_str = f"{hl:02d}:{ml:02d}:00"
+        utc_time_str = f"{int(h_sel):02d}:00:00"
+
+        # Orientación E/W
+        if 0 <= azim_sol <= 90:
+            az_ew = 90 - azim_sol
+            ref_ew = "NE"
+        elif 90 < azim_sol <= 180:
+            az_ew = azim_sol - 90
+            ref_ew = "SE"
+        elif 180 < azim_sol <= 270:
+            az_ew = 270 - azim_sol
+            ref_ew = "SW"
+        else:
+            az_ew = azim_sol - 270
+            ref_ew = "NW"
+
+        lat_sol_p, lon_sol_p = calcular_punto_proyectado(
+            lat, lon, azim_sol, RADIO_TRAYECTORIA_KM
+        )
+        color_sol = "orange" if elev_sol >= 0 else "gray"
+        estado_sol = "Day" if elev_sol >= 0 else "Nigt"
+
+        # Construcción de la figura Plotly Mapbox
+        fig = go.Figure()
+
+        # 1. Ubicación central
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=[lat],
+                lon=[lon],
+                mode="markers+text",
+                marker=dict(size=12, color="red"),
+                text=[poblacion],
+                textposition="bottom right",
+                name="Location",
+                hoverinfo="text",
+            )
+        )
+
+        # 2. Círculo de referencia y ejes cruzados
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=[p[0] for p in puntos_circulo],
+                lon=[p[1] for p in puntos_circulo],
+                mode="lines",
+                line=dict(width=1, color="rgba(150, 150, 150, 1.5)"),
+                hoverinfo="skip",
+                name="Reference",
+            )
+        )
+
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=[lat_s, lat_n, None, lat, lat],
+                lon=[lon_s, lon_n, None, lon_o, lon_e],
+                mode="lines",
+                line=dict(width=1, color="rgba(150, 150, 150, 1.5)"),
+                hoverinfo="skip",
+                name="Axis",
+            )
+        )
+
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=card_lats,
+                lon=card_lons,
+                mode="text",
+                text=card_texts,
+                textposition="middle center",
+                textfont=dict(
+                    size=18,
+                    color="darkred",
+                    family="Arial Black"
+                ),
+                name="Cardinales",
+                hoverinfo="skip"
+            )
+        )
+
+        # 3. Trayectoria solar estática
+        if puntos_tray:
+            fig.add_trace(
+                go.Scattermapbox(
+                    lat=[p[0] for p in puntos_tray],
+                    lon=[p[1] for p in puntos_tray],
+                    mode="lines",
+                    line=dict(width=4, color="darkorange"),
+                    name="Sun Trajectory",
+                    hoverinfo="name",
+                )
+            )
+
+        # 4. Línea de unión entre centro y sol actual
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=[lat, lat_sol_p],
+                lon=[lon, lon_sol_p],
+                mode="lines",
+                line=dict(width=2, color="darkorange"),
+                name="Línea Sol-Centro",
+                hoverinfo="skip",
+            )
+        )
+
+        # 5. Sol prominente
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=[lat_sol_p],
+                lon=[lon_sol_p],
+                mode="markers+text",
+                marker=dict(size=32, color=color_sol),
+                text=["☀️"],
+                textposition="middle center",
+                name="Sol",
+                customdata=[[
+                    utc_time_str,
+                    local_time_str,
+                    round(elev_sol, 1),
+                    round(azim_sol, 1),
+                    round(az_ew, 1),
+                    ref_ew,
+                    estado_sol,
+                    date_val_tab4,
+                ]],
+                hovertemplate=(
+                    "<b>Date:</b> %{customdata[7]}<br><b>Estado:</b>"
+                    " %{customdata[6]}<br><b>UTC:</b> %{customdata[0]}<br><b>Local:"
+                    "</b> %{customdata[1]}<br><b>Az:</b>"
+                    " %{customdata[3]}°<br><b>El:</b>"
+                    " %{customdata[2]}°<br><b>Angle E/W:</b> %{customdata[4]}°"
+                    " %{customdata[5]}<extra></extra>"
+                ),
+            )
+        )
+
+        # Leyenda / Caja de información arriba a la izquierda
+        fig.add_annotation(
+            text=(
+                f"<b>Date:</b> {date_val_tab4}<br><b>Lat:</b>"
+                f" {lat:.5f}<br><b>Lon:</b> {lon:.5f}<br><b>UTC:</b>"
+                f" {utc_time_str}<br><b>Local:</b> {local_time_str}"
+            ),
+            align="left",
+            showarrow=False,
+            xref="paper",
+            yref="paper",
+            x=0.02,
+            y=0.98,
+            bgcolor="rgba(255, 255, 255, 0.85)",
+            bordercolor="#ccc",
+            borderwidth=1,
+            borderpad=6,
+            font=dict(size=11, family="sans-serif", color="#222"),
+        )
+
+        fig.update_layout(
+            mapbox=dict(
+                style="carto-positron",
+                center=dict(lat=lat, lon=lon),
+                zoom=11,
+            ),
+            uirevision="slider_rerender_fix",  # <--- Esto evita que el mapa se reinicie al mover el slider
+            height=800,
+            margin=dict(l=0, r=0, t=0, b=0),
+            showlegend=False,
+        )
+
+        st.plotly_chart(fig, use_container_width=True, key="plotly_map_tab4")
+
+    # Ejecutar el fragmento
+    render_interactive_sun_map()
+
     
-    folium.PolyLine(
-        locations=[[st.session_state.lat, st.session_state.lon], [lat_sol_p, lon_sol_p]],
-        color="orange",
-        weight=2,
-        dash_array="4, 4",
-        tooltip="Línea de orientación hacia el Sol"
-    ).add_to(mapa4)
-
-    if elev_sol > 0:
-        sombra_m = 1 / math.tan(math.radians(elev_sol))
-    else:
-        sombra_m = 0
-    dist_sombra = sombra_m / 1000
-    if dist_sombra > 0:
-        lat_sombra, lon_sombra = calcular_punto_proyectado(st.session_state.lat, st.session_state.lon, azim_sol, dist_sombra)
-        folium.PolyLine(
-            locations=[[st.session_state.lat, st.session_state.lon], [lat_sombra, lon_sombra]],
-            color="black",
-            weight=3,
-            tooltip="Sombra proyectada"
-        ).add_to(mapa4)
-
-    if puntos_tray:
-        folium.PolyLine(
-            locations=puntos_tray,
-            color="orange",
-            weight=2.5,
-            tooltip="Trayectoria solar del día seleccionado"
-        ).add_to(mapa4)
-
-    st_folium(mapa4, width="100%", height=700, key="mapa_avanzado_tab4", returned_objects=[])
-
-
     # ---------------------------------------------------------
     # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada)
     # ---------------------------------------------------------
@@ -1359,114 +1416,177 @@ with tab4:
             "Select an UTC Time:",
             min_value=0,
             max_value=23,
-            value=int(hora_sel),
+            value=datetime.now(pytz.utc).hour,
             step=1,
-            key="slider_utc_animacion_tab4"
+            key="slider_utc_animacion_tab4",
         )
 
+        if "map_center_t4" not in st.session_state:
+            st.session_state["map_center_t4"] = [
+                st.session_state.lat,
+                st.session_state.lon,
+            ]
+        if "map_zoom_t4" not in st.session_state:
+            st.session_state["map_zoom_t4"] = 12
+
         mapa_animado = folium.Map(
-            location=[st.session_state.lat, st.session_state.lon],
-            zoom_start=10,
+            location=st.session_state["map_center_t4"],
+            zoom_start=st.session_state["map_zoom_t4"],
             tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            attr="Esri World Imagery"
+            attr="Esri World Imagery",
         )
 
         info_box_anim = f"""
         <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.85); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; line-height: 1.4; color: #222;">
             <b>Date:</b> {date_val_tab4}<br>
-            <b>Lat:</b> {lat_val}<br>
-            <b>Lon:</b> {lon_val}<br>
-            <b>Local Time:</b> {local_time_calculada}<br>
-            <b>UTC:</b> {utc_time_calculada}
+            <b>Lat:</b> {st.session_state.lat}<br>
+            <b>Lon:</b> {st.session_state.lon}<br>
+            <b>UTC:</b> {hora_slider_utc:02d}:00:00
         </div>
         """
         mapa_animado.get_root().html.add_child(folium.Element(info_box_anim))
 
+        lat_rad = math.radians(st.session_state.lat)
+        lon_rad = math.radians(st.session_state.lon)
+        R = 6371.0
+        dist_km = 6.0
+
         puntos_24h_completa = []
         for h in range(24):
-            elev_h, azim_h = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, float(h))
+            elev_h, azim_h = spa(
+                fecha_tab4, st.session_state.lat, st.session_state.lon, float(h)
+            )
             az_rad_h = math.radians(azim_h)
-            lat_h = math.degrees(math.asin(math.sin(lat_rad)*math.cos(dist_km/R) + math.cos(lat_rad)*math.sin(dist_km/R)*math.cos(az_rad_h)))
-            lon_h = math.degrees(lon_rad + math.atan2(math.sin(az_rad_h)*math.sin(dist_km/R)*math.cos(lat_rad), math.cos(dist_km/R) - math.sin(lat_rad)*math.sin(math.radians(lat_h))))
+            lat_h = math.degrees(
+                math.asin(
+                    math.sin(lat_rad) * math.cos(dist_km / R)
+                    + math.cos(lat_rad)
+                    * math.sin(dist_km / R)
+                    * math.cos(az_rad_h)
+                )
+            )
+            lon_h = math.degrees(
+                lon_rad
+                + math.atan2(
+                    math.sin(az_rad_h) * math.sin(dist_km / R) * math.cos(lat_rad),
+                    math.cos(dist_km / R)
+                    - math.sin(lat_rad) * math.sin(math.radians(lat_h)),
+                )
+            )
             puntos_24h_completa.append([lat_h, lon_h])
 
             if h > 0:
                 folium.PolyLine(
-                    locations=[puntos_24h_completa[h-1], puntos_24h_completa[h]],
+                    locations=[puntos_24h_completa[h - 1], puntos_24h_completa[h]],
                     color="orange" if elev_h > 0 else "#888888",
                     weight=2,
-                    dash_array="4, 4"
+                    dash_array="4, 4",
                 ).add_to(mapa_animado)
 
         for h in range(hora_slider_utc + 1):
-            elev_h, azim_h = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, float(h))
+            elev_h, azim_h = spa(
+                fecha_tab4, st.session_state.lat, st.session_state.lon, float(h)
+            )
             az_rad_h = math.radians(azim_h)
-            lat_h = math.degrees(math.asin(math.sin(lat_rad)*math.cos(dist_km/R) + math.cos(lat_rad)*math.sin(dist_km/R)*math.cos(az_rad_h)))
-            lon_h = math.degrees(lon_rad + math.atan2(math.sin(az_rad_h)*math.sin(dist_km/R)*math.cos(lat_rad), math.cos(dist_km/R) - math.sin(lat_rad)*math.sin(math.radians(lat_h))))
+            lat_h = math.degrees(
+                math.asin(
+                    math.sin(lat_rad) * math.cos(dist_km / R)
+                    + math.cos(lat_rad)
+                    * math.sin(dist_km / R)
+                    * math.cos(az_rad_h)
+                )
+            )
+            lon_h = math.degrees(
+                lon_rad
+                + math.atan2(
+                    math.sin(az_rad_h) * math.sin(dist_km / R) * math.cos(lat_rad),
+                    math.cos(dist_km / R)
+                    - math.sin(lat_rad) * math.sin(math.radians(lat_h)),
+                )
+            )
 
             color_icono = "orange" if elev_h > 0 else "#888888"
             estado_txt = "Day (Sun visible)" if elev_h >= 0 else "Night"
             icono_emoji = "☀️" if elev_h >= 0 else "🌙"
 
-            h_local_loop = (h + offset_sidebar) % 24
+            # Calcular DST para la fecha seleccionada y la longitud actual
+            dst_activo_loop = es_horario_verano(fecha_tab4, st.session_state.lon)
+            offset_val = st.session_state.get("offset_sidebar", 1)
+            offset_total_loop = offset_val + (1 if dst_activo_loop else 0)
+            
+            h_local_loop = (h + offset_total_loop) % 24
             hl_h = int(h_local_loop)
             ml_h = int(round((h_local_loop - hl_h) * 60))
             if ml_h == 60:
                 hl_h = (hl_h + 1) % 24
                 ml_h = 0
-            
+
             hora_local_loop_str = f"{hl_h:02d}:{ml_h:02d}:00"
             utc_loop_str = f"{h:02d}:00:00"
             utc_hm_label = f"{h:02d}:00"
 
-            es_hora_actual = (h == hora_slider_utc)
+            es_hora_actual = h == hora_slider_utc
             tam_icono = 32 if es_hora_actual else 22
             borde_icono = "3px solid red" if es_hora_actual else "2px solid #222"
             z_index_val = 1005 if es_hora_actual else 1000
 
             html_sol_anim = f"""
-            <div style="position: relative; width: {tam_icono}px; height: {tam_icono}px; left: -{tam_icono/2}px; top: -{tam_icono/2}px; z-index: {z_index_val};">
-                <div style="position: absolute; width: {tam_icono-4}px; height: {tam_icono-4}px; background-color: {color_icono};
+            <div style="position: relative; width: {tam_icono}px; height: {tam_icono}px; left: -{tam_icono / 2}px; top: -{tam_icono / 2}px; z-index: {z_index_val};">
+                <div style="position: absolute; width: {tam_icono - 4}px; height: {tam_icono - 4}px; background-color: {color_icono};
                             border-radius: 50%; border: {borde_icono}; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
                             display: flex; align-items: center; justify-content: center; font-size: 11px;">
-                    {icono_emoji}
-                </div>
-                <div style="position: absolute; top: 50%; left: {tam_icono + 4}px; transform: translateY(-50%);
+                        {icono_emoji}
+                    </div>
+                    <div style="position: absolute; top: 50%; left: {tam_icono + 4}px; transform: translateY(-50%);
                             color: #222; font-size: 10px; white-space: nowrap; font-weight: bold; font-family: sans-serif;
                             text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;">
-                    {utc_hm_label}
+                        {utc_hm_label}
+                    </div>
                 </div>
-            </div>
-            """
+                """
 
             folium.Marker(
                 [lat_h, lon_h],
-                popup=folium.Popup(f"""
-                <div style="font-size: 12px; font-family: sans-serif; line-height: 1.4;">
-                    <b>UTC:</b> {utc_loop_str}<br>
-                    <b>Local:</b> {hora_local_loop_str}<br>
-                    <b>Az:</b> {azim_h:.1f}°<br>
-                    <b>El:</b> {elev_h:.1f}°<br>
-                    <b>Day status:</b> {estado_txt}<br>
-                </div>
-                """, max_width=300),
+                popup=folium.Popup(
+                    f"""
+                        <div style="font-size: 12px; font-family: sans-serif; line-height: 1.4;">
+                            <b>UTC:</b> {utc_loop_str}<br>
+                            <b>Local:</b> {hora_local_loop_str}<br>
+                            <b>Az:</b> {azim_h:.1f}°<br>
+                            <b>El:</b> {elev_h:.1f}°<br>
+                            <b>Day status:</b> {estado_txt}<br>
+                        </div>
+                        """,
+                    max_width=300,
+                ),
                 icon=folium.DivIcon(
-                    html=html_sol_anim, 
-                    icon_size=(tam_icono, tam_icono), 
-                    icon_anchor=(0, 0)
-                )
+                    html=html_sol_anim,
+                    icon_size=(tam_icono, tam_icono),
+                    icon_anchor=(0, 0),
+                ),
             ).add_to(mapa_animado)
 
         folium.Marker(
             [st.session_state.lat, st.session_state.lon],
-            popup=st.session_state.poblacion,
-            icon=folium.Icon(color="red", icon="info-sign")
+            popup=st.session_state.get("poblacion", "Ubicación"),
+            icon=folium.Icon(color="red", icon="info-sign"),
         ).add_to(mapa_animado)
 
-        st_folium(mapa_animado, width="100%", height=700, key="mapa_animado_integrado_tab4", returned_objects=[])
+        map_output = st_folium(
+            mapa_animado, width="100%", height=700, key="mapa_animado_integrado_tab4"
+        )
 
+        if map_output and map_output.get("center"):
+            st.session_state["map_center_t4"] = [
+                map_output["center"]["lat"],
+                map_output["center"]["lng"],
+            ]
+        if map_output and map_output.get("zoom"):
+            st.session_state["map_zoom_t4"] = map_output["zoom"]
+
+    # Ejecutar el segundo fragmento
     render_mapa_animado_acumulado()
-
+  
     # ---------------------------------------------------------
     # TERCER MAPA DE LA TAB 4 (Esfera / Cúpula Polar 3D)
     # ---------------------------------------------------------
@@ -1479,7 +1599,7 @@ with tab4:
             "Select an UTC Time (Solar Chart Dome):",
             min_value=0,
             max_value=23,
-            value=int(hora_sel),
+            value=datetime.now(pytz.utc).hour,
             step=1,
             key="slider_utc_animacion_dome_tab4"
         )
@@ -1491,11 +1611,26 @@ with tab4:
             attr="Esri World Imagery"
         )
 
+        # Cálculo preciso de la hora local de la selección actual del slider incluyendo DST
+        dst_actual_dome = es_horario_verano(fecha_tab4, st.session_state.lon)
+        offset_val_dome = st.session_state.get("offset_sidebar", 1)
+        offset_total_dome = offset_val_dome + (1 if dst_actual_dome else 0)
+        
+        h_local_actual_dome = (float(hora_slider_utc_dome) + offset_total_dome) % 24
+        hl_d = int(h_local_actual_dome)
+        ml_d = int(round((h_local_actual_dome - hl_d) * 60))
+        if ml_d == 60:
+            hl_d = (hl_d + 1) % 24
+            ml_d = 0
+            
+        local_time_calculada = f"{hl_d:02d}:{ml_d:02d}:00"
+        utc_time_calculada = f"{int(hora_slider_utc_dome):02d}:00:00"
+
         info_box_dome = f"""
         <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.85); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; line-height: 1.4; color: #222;">
             <b>Date:</b> {date_val_tab4}<br>
-            <b>Lat:</b> {lat_val}<br>
-            <b>Lon:</b> {lon_val}<br>
+            <b>Lat:</b> {st.session_state.lat}<br>
+            <b>Lon:</b> {st.session_state.lon}<br>
             <b>Local Time:</b> {local_time_calculada}<br>
             <b>UTC:</b> {utc_time_calculada}
         </div>
@@ -1522,7 +1657,7 @@ with tab4:
             )
             lon_dest = math.degrees(
                 rad_lon + math.atan2(
-                    math.sin(rad_az) * math.sin(distancia_km / R_earth) * math.cos(lat_rad),
+                    math.sin(rad_az) * math.sin(distancia_km / R_earth) * math.cos(rad_lat),
                     math.cos(distancia_km / R_earth) - math.sin(rad_lat) * math.sin(math.radians(lat_dest))
                 )
             )
@@ -1608,7 +1743,7 @@ with tab4:
                 locations=puntos_tray_dome,
                 color="orange",
                 weight=2.5,
-                tooltip="Trayectoria solar en domo polar"
+                tooltip="Solar Trayectory"
             ).add_to(mapa_domo)
 
         for h in range(hora_slider_utc_dome + 1):
@@ -1621,7 +1756,12 @@ with tab4:
                 estado_txt = "Day (Sun visible)" if elev_h >= 0 else "Night"
                 icono_emoji = "☀️" if elev_h >= 0 else "🌙"
 
-                h_local_loop = (h + offset_sidebar) % 24
+                # Cálculo de DST correcto para cada hora iterada en el bucle
+                dst_loop = es_horario_verano(fecha_tab4, st.session_state.lon)
+                offset_loop_base = st.session_state.get("offset_sidebar", 1)
+                offset_total_loop = offset_loop_base + (1 if dst_loop else 0)
+
+                h_local_loop = (h + offset_total_loop) % 24
                 hl_h = int(h_local_loop)
                 ml_h = int(round((h_local_loop - hl_h) * 60))
                 if ml_h == 60:
