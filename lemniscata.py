@@ -2184,7 +2184,10 @@ with tab4:
         if map_output and map_output.get("zoom"):
             st.session_state["map_zoom_t4"] = map_output["zoom"]
 
-    render_mapa_animado_acumulado()
+    if "mapa_animado_integrado_tab4" not in st.session_state:
+        st.session_state["mapa_animado_integrado_tab4"] = True
+        # Esto fuerza una ejecución inicial si el fragmento no lo hace solo
+        render_mapa_animado_acumulado()
 
 
     # ---------------------------------------------------------
@@ -2467,7 +2470,10 @@ with tab4:
 
         st_folium(mapa_domo, width="100%", height=700, key="mapa_domo_polar_tab4", returned_objects=[])
 
-    render_mapa_domo_polar()
+    if "mapa_domo_polar_tab4" not in st.session_state:
+        st.session_state["mapa_domo_polar_tab4"] = True
+        # Esto fuerza una ejecución inicial si el fragmento no lo hace solo
+        render_mapa_domo_polar()
     
 # ---------------------------------------------------------
 # TAB 5 – COMPARACIÓN ENTRE CIUDADES (UTC)
@@ -2994,10 +3000,7 @@ with tab6:
         xaxis=dict(
             type="date", 
             tickformat="%d.%m",
-            nticks=12,
-            unifiedhovertitle=dict(
-                text="<b>Date: %{x|%d.%m.%Y}</b>"
-            )
+            nticks=12
         ),
         margin=dict(t=80)
     )
