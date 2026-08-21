@@ -1581,31 +1581,36 @@ with tab4:
         """,
         unsafe_allow_html=True
     )
-	
+        
     # 2. Contenedor con una "marca" (la clase fixed-header)
     with st.container():
         st.markdown('<div class="fixed-header"></div>', unsafe_allow_html=True)
-        
-	# 1. Controles superiores (Día del Año)
+            
+        # 1. Controles superiores (Día del Año)
         ahora_utc_tab4 = datetime.now(pytz.utc)
         dia_actual_t4 = ahora_utc_tab4.timetuple().tm_yday
 
+        # Inicializamos el estado si no existe para evitar conflictos
+        if "tab4_dia_ano" not in st.session_state:
+            st.session_state["tab4_dia_ano"] = dia_actual_t4
+
+        # Slider SIN el parámetro 'value'
         dia_del_ano_tab4 = st.slider(
             "Day of the Year (Step: 10 days)",
             1,
             365,
-            value=dia_actual_t4,
             step=10,
             key="tab4_dia_ano",
-            )
+        )
+            
         fecha_sel_dt_t4 = pd.to_datetime(f"{year}-01-01") + pd.Timedelta(
             days=dia_del_ano_tab4 - 1
-            )
+        )
         date_val_tab4 = fecha_sel_dt_t4.strftime("%d.%m.%Y")
         fecha_sel_str_t4 = fecha_sel_dt_t4.strftime("%d.%m.%Y")
         st.caption(
             f"📅 Selected Date: **{fecha_sel_str_t4}** (Day {dia_del_ano_tab4})"
-    	)
+        )
 
         fecha_tab4 = fecha_sel_dt_t4.to_pydatetime()
 
@@ -1918,7 +1923,7 @@ with tab4:
     render_interactive_sun_map()
 
     
- # ---------------------------------------------------------
+    # ---------------------------------------------------------
     # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada - Corregido)
     # ---------------------------------------------------------
     st.markdown("---")
@@ -1930,16 +1935,20 @@ with tab4:
         hora_actual_utc = ahora_utc.hour
         minutos_actuales_frac = ahora_utc.minute / 60.0
 
+        # Inicializar la key en session_state si no existe
+        if "slider_utc_animacion_tab4" not in st.session_state:
+            st.session_state["slider_utc_animacion_tab4"] = hora_actual_utc
+
         # Cálculo de DST y offset local dentro del fragmento
         dst_actual = es_horario_verano(fecha_tab4, st.session_state.lon)
         offset_val = st.session_state.get("offset_sidebar", 1)
         offset_total = offset_val + (1 if dst_actual else 0)
 
+        # Slider SIN el parámetro 'value' para evitar el AssertionError
         hora_slider_utc = st.slider(
             "UTC:",
             min_value=0,
             max_value=23,
-            value=hora_actual_utc,
             step=1,
             key="slider_utc_animacion_tab4",
         )
@@ -2022,7 +2031,6 @@ with tab4:
             )
             puntos_24h_completa.append([lat_h, lon_h])
 
-            # Hover detallado para las líneas de la trayectoria usando los datos del punto de fin de hora
             if h > 0:
                 h_ant = h - 1
                 utc_line_str = f"{h:02d}:00"
@@ -2051,9 +2059,9 @@ with tab4:
 
                 folium.PolyLine(
                     locations=[puntos_24h_completa[h_ant], puntos_24h_completa[h]],
-                    color="orange" if elev_h > 0 else "#888888",
-                    weight=4,
-                    dash_array="4, 4",
+                    color="orange" if elev_h > 0 else "#222222",
+                    weight=4 if elev_h > 0 else 2.0,
+                    dash_array=None if elev_h > 0 else "5, 5",
                     tooltip=folium.Tooltip(
                         f"""
                         <div style="font-size: 12px; font-family: sans-serif; line-height: 1.4;">
@@ -2091,7 +2099,7 @@ with tab4:
                 )
             )
 
-            color_icono = "orange" if elev_h > 0 else "#888888"
+            color_icono = "orange" if elev_h > 0 else "#222222"
             icono_emoji = "☀️" if elev_h >= 0 else "🌙"
 
             h_local_loop = (float(h) + offset_total) % 24
@@ -2179,7 +2187,8 @@ with tab4:
             st.session_state["map_zoom_t4"] = map_output["zoom"]
 
     render_mapa_animado_acumulado()
-    
+
+
     # ---------------------------------------------------------
     # TERCER MAPA DE LA TAB 4 (Esfera / Cúpula Polar 3D)
     # ---------------------------------------------------------
