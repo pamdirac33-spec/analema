@@ -1929,16 +1929,18 @@ with tab4:
     st.markdown("---")
     st.markdown("### Sun Trajectory Animation")
 
+    ahora_utc = datetime.now(pytz.utc)
+    hora_actual_utc = ahora_utc.hour
+    minutos_actuales_frac = ahora_utc.minute / 60.0
+
+    # Inicializar la key en session_state si no existe
+    if "slider_utc_animacion_tab4" not in st.session_state:
+        st.session_state["slider_utc_animacion_tab4"] = hora_actual_utc
+            
     @st.fragment
     def render_mapa_animado_acumulado():
-        ahora_utc = datetime.now(pytz.utc)
-        hora_actual_utc = ahora_utc.hour
-        minutos_actuales_frac = ahora_utc.minute / 60.0
 
-        # Inicializar la key en session_state si no existe
-        if "slider_utc_animacion_tab4" not in st.session_state:
-            st.session_state["slider_utc_animacion_tab4"] = hora_actual_utc
-
+        hora_default = datetime.now(pytz.utc).hour
         # Cálculo de DST y offset local dentro del fragmento
         dst_actual = es_horario_verano(fecha_tab4, st.session_state.lon)
         offset_val = st.session_state.get("offset_sidebar", 1)
@@ -1949,6 +1951,7 @@ with tab4:
             "UTC:",
             min_value=0,
             max_value=23,
+            value=st.session_state.get("slider_utc_animacion_tab4", hora_default),
             step=1,
             key="slider_utc_animacion_tab4",
         )
@@ -2196,17 +2199,24 @@ with tab4:
     st.markdown("---")
     st.markdown("### Solar Chart Polar Dome")
 
+    ahora_utc = datetime.now(pytz.utc)
+    hora_actual_utc = ahora_utc.hour
+    minutos_actuales_frac = ahora_utc.minute / 60.0
+
+    # Inicializar la key en session_state si no existe
+    if "slider_utc_animacion_dome_tab4" not in st.session_state:
+        st.session_state["slider_utc_animacion_dome_tab4"] = hora_actual_utc
+        
     @st.fragment
     def render_mapa_domo_polar():
-        ahora_utc = datetime.now(pytz.utc)
-        hora_actual_utc = ahora_utc.hour
-        minutos_actuales_frac = ahora_utc.minute / 60.0
+        # 1. Recuperamos el valor, si no existe, usamos el actual
+        hora_default = datetime.now(pytz.utc).hour
 
         hora_slider_utc_dome = st.slider(
             "UTC:",
             min_value=0,
             max_value=23,
-            value=datetime.now(pytz.utc).hour,
+            value=st.session_state.get("slider_utc_animacion_dome_tab4", hora_default),
             step=1,
             key="slider_utc_animacion_dome_tab4"
         )
