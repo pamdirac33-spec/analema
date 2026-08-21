@@ -1918,8 +1918,8 @@ with tab4:
     render_interactive_sun_map()
 
     
-    # ---------------------------------------------------------
-    # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada)
+ # ---------------------------------------------------------
+    # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada - Corregido)
     # ---------------------------------------------------------
     st.markdown("---")
     st.markdown("### Sun Trajectory Animation")
@@ -1929,6 +1929,11 @@ with tab4:
         ahora_utc = datetime.now(pytz.utc)
         hora_actual_utc = ahora_utc.hour
         minutos_actuales_frac = ahora_utc.minute / 60.0
+
+        # Cálculo de DST y offset local dentro del fragmento
+        dst_actual = es_horario_verano(fecha_tab4, st.session_state.lon)
+        offset_val = st.session_state.get("offset_sidebar", 1)
+        offset_total = offset_val + (1 if dst_actual else 0)
 
         hora_slider_utc = st.slider(
             "UTC:",
@@ -2133,7 +2138,6 @@ with tab4:
                 </div>
                 """
 
-            # Usamos tooltip en lugar de popup para que aparezca al pasar el ratón (hover)
             folium.Marker(
                 [lat_h, lon_h],
                 tooltip=folium.Tooltip(
