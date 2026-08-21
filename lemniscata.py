@@ -399,7 +399,7 @@ with tab1:
     </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("### Location Selection)")
+    st.markdown("### Location Selection:")
     
     if "busqueda_query" not in st.session_state:
         st.session_state.busqueda_query = ""
@@ -1929,18 +1929,16 @@ with tab4:
     st.markdown("---")
     st.markdown("### Sun Trajectory Animation")
 
-    ahora_utc = datetime.now(pytz.utc)
-    hora_actual_utc = ahora_utc.hour
-    minutos_actuales_frac = ahora_utc.minute / 60.0
-
-    # Inicializar la key en session_state si no existe
-    if "slider_utc_animacion_tab4" not in st.session_state:
-        st.session_state["slider_utc_animacion_tab4"] = hora_actual_utc
-            
     @st.fragment
     def render_mapa_animado_acumulado():
+        ahora_utc = datetime.now(pytz.utc)
+        hora_actual_utc = ahora_utc.hour
+        minutos_actuales_frac = ahora_utc.minute / 60.0
 
-        hora_default = datetime.now(pytz.utc).hour
+        # Inicializar la key en session_state si no existe
+        if "slider_utc_animacion_tab4" not in st.session_state:
+            st.session_state["slider_utc_animacion_tab4"] = hora_actual_utc
+
         # Cálculo de DST y offset local dentro del fragmento
         dst_actual = es_horario_verano(fecha_tab4, st.session_state.lon)
         offset_val = st.session_state.get("offset_sidebar", 1)
@@ -1951,7 +1949,6 @@ with tab4:
             "UTC:",
             min_value=0,
             max_value=23,
-            value=st.session_state.get("slider_utc_animacion_tab4", hora_default),
             step=1,
             key="slider_utc_animacion_tab4",
         )
@@ -2187,10 +2184,7 @@ with tab4:
         if map_output and map_output.get("zoom"):
             st.session_state["map_zoom_t4"] = map_output["zoom"]
 
-    if "mapa_animado_integrado_tab4" not in st.session_state:
-        st.session_state["mapa_animado_integrado_tab4"] = True
-        # Esto fuerza una ejecución inicial si el fragmento no lo hace solo
-        render_mapa_animado_acumulado()
+    render_mapa_animado_acumulado()
 
 
     # ---------------------------------------------------------
@@ -2199,24 +2193,17 @@ with tab4:
     st.markdown("---")
     st.markdown("### Solar Chart Polar Dome")
 
-    ahora_utc = datetime.now(pytz.utc)
-    hora_actual_utc = ahora_utc.hour
-    minutos_actuales_frac = ahora_utc.minute / 60.0
-
-    # Inicializar la key en session_state si no existe
-    if "slider_utc_animacion_dome_tab4" not in st.session_state:
-        st.session_state["slider_utc_animacion_dome_tab4"] = hora_actual_utc
-        
     @st.fragment
     def render_mapa_domo_polar():
-        # 1. Recuperamos el valor, si no existe, usamos el actual
-        hora_default = datetime.now(pytz.utc).hour
+        ahora_utc = datetime.now(pytz.utc)
+        hora_actual_utc = ahora_utc.hour
+        minutos_actuales_frac = ahora_utc.minute / 60.0
 
         hora_slider_utc_dome = st.slider(
             "UTC:",
             min_value=0,
             max_value=23,
-            value=st.session_state.get("slider_utc_animacion_dome_tab4", hora_default),
+            value=datetime.now(pytz.utc).hour,
             step=1,
             key="slider_utc_animacion_dome_tab4"
         )
@@ -2480,10 +2467,7 @@ with tab4:
 
         st_folium(mapa_domo, width="100%", height=700, key="mapa_domo_polar_tab4", returned_objects=[])
 
-    if "mapa_domo_polar_tab4" not in st.session_state:
-        st.session_state["mapa_domo_polar_tab4"] = True
-        # Esto fuerza una ejecución inicial si el fragmento no lo hace solo
-        render_mapa_domo_polar()
+    render_mapa_domo_polar()
     
 # ---------------------------------------------------------
 # TAB 5 – COMPARACIÓN ENTRE CIUDADES (UTC)
