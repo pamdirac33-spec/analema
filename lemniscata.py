@@ -2073,7 +2073,6 @@ with tab4:
                             <b>Status:</b> {estado_txt}
                         </div>
                         """,
-                        max_width=300,
                     ),
                 ).add_to(mapa_animado)
 
@@ -2159,7 +2158,6 @@ with tab4:
                         <b>Status:</b> {estado_txt}
                     </div>
                     """,
-                    max_width=300,
                 ),
                 icon=folium.DivIcon(
                     html=html_sol_anim,
@@ -2453,7 +2451,6 @@ with tab4:
                         <b>Status:</b> {estado_txt}
                     </div>
                     """,
-                    max_width=300,
                 ),
                 icon=folium.DivIcon(
                     html=html_dome_marker, 
