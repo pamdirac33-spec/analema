@@ -1771,7 +1771,7 @@ with tab4:
 
         # 1. Ubicación central
         fig.add_trace(
-            go.Scattermapbox(
+            go.Scattermap(
                 lat=[lat],
                 lon=[lon],
                 mode="markers+text",
@@ -1785,7 +1785,7 @@ with tab4:
 
         # 2. Círculo de referencia y ejes cruzados
         fig.add_trace(
-            go.Scattermapbox(
+            go.Scattermap(
                 lat=[p[0] for p in puntos_circulo],
                 lon=[p[1] for p in puntos_circulo],
                 mode="lines",
@@ -1796,7 +1796,7 @@ with tab4:
         )
 
         fig.add_trace(
-            go.Scattermapbox(
+            go.Scattermap(
                 lat=[lat_s, lat_n, None, lat, lat],
                 lon=[lon_s, lon_n, None, lon_o, lon_e],
                 mode="lines",
@@ -1808,7 +1808,7 @@ with tab4:
 
         # Puntos cardinales con fondo azul claro (markers + text)
         fig.add_trace(
-            go.Scattermapbox(
+            go.Scattermap(
                 lat=card_lats,
                 lon=card_lons,
                 mode="markers+text",
@@ -1832,7 +1832,7 @@ with tab4:
         # 3. Trayectoria solar con hover sincronizado
         if puntos_tray:
             fig.add_trace(
-                go.Scattermapbox(
+                go.Scattermap(
                     lat=[p[0] for p in puntos_tray],
                     lon=[p[1] for p in puntos_tray],
                     mode="lines",
@@ -1845,7 +1845,7 @@ with tab4:
 
         # 4. Línea de unión entre centro y sol actual
         fig.add_trace(
-            go.Scattermapbox(
+            go.Scattermap(
                 lat=[lat, lat_sol_p],
                 lon=[lon, lon_sol_p],
                 mode="lines",
@@ -1857,7 +1857,7 @@ with tab4:
 
         # 5. Sol prominente
         fig.add_trace(
-            go.Scattermapbox(
+            go.Scattermap(
                 lat=[lat_sol_p],
                 lon=[lon_sol_p],
                 mode="markers+text",
@@ -1906,7 +1906,7 @@ with tab4:
         )
 
         fig.update_layout(
-            mapbox=dict(
+            map=dict(
                 style="carto-positron",
                 center=dict(lat=lat, lon=lon),
                 zoom=11,
