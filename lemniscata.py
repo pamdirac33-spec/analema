@@ -1705,223 +1705,123 @@ with tab4:
 
     # Fragmento interactivo: el slider y todo lo que depende de él van dentro
     @st.fragment
-    def render_interactive_sun_map():
-        # Obtener la hora UTC actual para usarla como valor por defecto
+    def render_interactive_sun_map_scattergeo():
         ahora_utc = datetime.now(pytz.utc)
         hora_actual_utc = ahora_utc.hour
         minutos_actuales_frac = ahora_utc.minute / 60.0
 
         hora_utc_tab4_slider = st.slider(
             "UTC Time (Hours):",
-            0,
-            23,
+            0, 23,
             value=hora_actual_utc,
             step=1,
-            key="tab4_hora_utc_fragment",
+            key="tab4_hora_utc_fragment_sgeo",
         )
 
-        # Si el usuario está en la hora actual, sumamos los minutos reales. 
-        # Si cambia de hora en el slider, toma la hora en punto (:00).
-        if hora_utc_tab4_slider == ahora_utc.hour:
-            h_sel = float(hora_utc_tab4_slider) + minutos_actuales_frac
-        else:
-            h_sel = float(hora_utc_tab4_slider)
-
-        elev_sol, azim_sol = spa(fecha_tab4, lat, lon, h_sel)
-
-        # Cálculo hora UTC con minutos reales
-        h_utc_int = int(h_sel)
-        m_utc_int = int(round((h_sel - h_utc_int) * 60))
-        if m_utc_int == 60:
-            h_utc_int = (h_utc_int + 1) % 24
-            m_utc_int = 0
-        utc_time_str = f"{h_utc_int:02d}:{m_utc_int:02d}"
-
-        # Cálculo hora Local con minutos reales
-        h_local = (h_sel + offset_total) % 24
-        hl = int(h_local)
-        ml = int(round((h_local - hl) * 60))
-        if ml == 60:
-            hl = (hl + 1) % 24
-            ml = 0
-        local_time_str = f"{hl:02d}:{ml:02d}"
-
-        # Orientación E/W
-        if 0 <= azim_sol <= 90:
-            az_ew = 90 - azim_sol
-            ref_ew = "NE"
-        elif 90 < azim_sol <= 180:
-            az_ew = azim_sol - 90
-            ref_ew = "SE"
-        elif 180 < azim_sol <= 270:
-            az_ew = 270 - azim_sol
-            ref_ew = "SW"
-        else:
-            az_ew = azim_sol - 270
-            ref_ew = "NW"
+        h_sel = float(hora_utc_tab4_slider) + (minutos_actuales_frac if hora_utc_tab4_slider == ahora_utc.hour else 0.0)
+        elev_sol, azim_sol = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, h_sel)
 
         lat_sol_p, lon_sol_p = calcular_punto_proyectado(
-            lat, lon, azim_sol, RADIO_TRAYECTORIA_KM
+            st.session_state.lat, st.session_state.lon, azim_sol, RADIO_TRAYECTORIA_KM
         )
-        color_sol = "orange" if elev_sol >= 0 else "gray"
-        estado_sol = "Day" if elev_sol >= 0 else "Nigt"
 
-        # Construcción de la figura Plotly Mapbox
         fig = go.Figure()
 
-        # 1. Ubicación central
-        fig.add_trace(
-            go.Scattermap(
-                lat=[lat],
-                lon=[lon],
-                mode="markers+text",
-                marker=dict(size=12, color="red"),
-                text=[poblacion],
-                textposition="bottom right",
-                name="Location",
-                hoverinfo="text",
-            )
-        )
+        # 1. Círculo de referencia (usando Scattermap)
+        fig.add_trace(go.Scattermap(
+            lat=[p[0] for p in puntos_circulo],
+            lon=[p[1] for p in puntos_circulo],
+            mode='lines',
+            line=dict(color='gray', width=1),
+            name="Referencia",
+            showlegend=False
+        ))
 
-        # 2. Círculo de referencia y ejes cruzados
-        fig.add_trace(
-            go.Scattermap(
-                lat=[p[0] for p in puntos_circulo],
-                lon=[p[1] for p in puntos_circulo],
-                mode="lines",
-                line=dict(width=1, color="rgba(150, 150, 150, 1.5)"),
-                hoverinfo="skip",
-                name="Reference",
-            )
-        )
+        # 2. Puntos cardinales (N, S, E, W)
+        fig.add_trace(go.Scattermap(
+            lat=card_lats,
+            lon=card_lons,
+            mode='text',
+            text=card_texts,
+            textfont=dict(size=14, color='black', family="Arial Black"),
+            name="Cardinales",
+            showlegend=False
+        ))
 
-        fig.add_trace(
-            go.Scattermap(
-                lat=[lat_s, lat_n, None, lat, lat],
-                lon=[lon_s, lon_n, None, lon_o, lon_e],
-                mode="lines",
-                line=dict(width=1, color="rgba(150, 150, 150, 1.5)"),
-                hoverinfo="skip",
-                name="Axis",
-            )
-        )
-
-        # Puntos cardinales con fondo azul claro (markers + text)
-        fig.add_trace(
-            go.Scattermap(
-                lat=card_lats,
-                lon=card_lons,
-                mode="markers+text",
-                marker=dict(
-                    size=20,
-                    color="lightblue",
-                    opacity=0.85
-                ),
-                text=card_texts,
-                textposition="middle center",
-                textfont=dict(
-                    size=16,
-                    color="white",  # Azul oscuro para buen contraste
-                    family="Arial Black"
-                ),
-                name="Cardinales",
-                hoverinfo="skip"
-            )
-        )
-
-        # 3. Trayectoria solar con hover sincronizado
+        # 3. Trayectoria solar del día
         if puntos_tray:
-            fig.add_trace(
-                go.Scattermap(
-                    lat=[p[0] for p in puntos_tray],
-                    lon=[p[1] for p in puntos_tray],
-                    mode="lines",
-                    line=dict(width=4, color="darkorange"),
-                    name="Sun Trajectory",
-                    hoverinfo="text",
-                    text=tray_hover_data,
-                )
+            tray_lats = [p[0] for p in puntos_tray]
+            tray_lons = [p[1] for p in puntos_tray]
+            fig.add_trace(go.Scattermap(
+                lat=tray_lats,
+                lon=tray_lons,
+                mode='lines',
+                line=dict(color='orange', width=4),
+                name="Trayectoria Solar",
+                hoverinfo='text',
+                text=tray_hover_data
+            ))
+
+        # 4. Ubicación Central
+        fig.add_trace(go.Scattermap(
+            lat=[st.session_state.lat],
+            lon=[st.session_state.lon],
+            mode='markers+text',
+            marker=dict(size=14, color='red'),
+            text=[poblacion],
+            textposition="bottom right",
+            name="Ubicación Central",
+            hovertemplate=(
+                f"<b>Ubicación:</b> {poblacion}<br>"
+                f"Lat: %{{lat:.4f}}<br>"
+                f"Lon: %{{lon:.4f}}<extra></extra>"
             )
+        ))
 
-        # 4. Línea de unión entre centro y sol actual
-        fig.add_trace(
-            go.Scattermap(
-                lat=[lat, lat_sol_p],
-                lon=[lon, lon_sol_p],
-                mode="lines",
-                line=dict(width=2, color="darkorange"),
-                name="Línea Sol-Centro",
-                hoverinfo="skip",
+        # 5. Posición Actual del Sol
+        color_sol = "orange" if elev_sol >= 0 else "gray"
+        icono_sol = "☀️" if elev_sol >= 0 else "🌙"
+
+        fig.add_trace(go.Scattermap(
+            lat=[lat_sol_p],
+            lon=[lon_sol_p],
+            mode='markers+text',
+            marker=dict(size=16, color=color_sol),
+            text=[icono_sol],
+            textposition="top center",
+            name="Posición del Sol",
+            hovertemplate=(
+                f"<b>Posición del Sol</b><br>"
+                f"Elevación: {elev_sol:.2f}°<br>"
+                f"Azimut: {azim_sol:.2f}°<br>"
+                f"Lat: %{{lat:.4f}}<br>"
+                f"Lon: %{{lon:.4f}}<extra></extra>"
             )
-        )
+        ))
 
-        # 5. Sol prominente
-        fig.add_trace(
-            go.Scattermap(
-                lat=[lat_sol_p],
-                lon=[lon_sol_p],
-                mode="markers+text",
-                marker=dict(size=32, color=color_sol),
-                text=["☀️"],
-                textposition="middle center",
-                name="Sol",
-                customdata=[[
-                    utc_time_str,
-                    local_time_str,
-                    elev_sol,
-                    azim_sol,
-                    az_ew,
-                    ref_ew,
-                    estado_sol,
-                    date_val_tab4,
-                ]],
-                hovertemplate=(
-                    "<b>Local Time:</b> %{customdata[1]}<br>"
-                    "<b>UTC:</b> %{customdata[0]}<br>"
-                    "<b>Azimuth:</b> %{customdata[3]:.2f}°<br>"
-                    "<b>Elevation:</b> %{customdata[2]:.2f}°<br>"
-                    "<b>Angle E/W:</b> %{customdata[4]:.2f}°"
-                    " %{customdata[5]}<extra></extra>"
-                ),
-            )
-        )
-
-        # Leyenda / Caja de información arriba a la izquierda
-        fig.add_annotation(
-            text=(
-                f"<b>Date:</b> {date_val_tab4}<br>"
-                f"<b>Lat:</b> {lat:.2f}°<br>"
-                f"<b>Lon:</b> {lon:.2f}°<br>"
-                f"<b>Local Time:</b> {local_time_str}<br>"
-                f"<b>UTC:</b> {utc_time_str}"
-            ),
-            align="left",
-            showarrow=False,
-            xref="paper",
-            yref="paper",
-            x=0.02,
-            y=0.98,
-            bgcolor="rgba(255, 255, 255, 0.85)",
-            font=dict(size=11, family="sans-serif", color="#222"),
-        )
-
+        # Configuración del mapa de calles gratuito (¡Sin appkey necesaria!)
         fig.update_layout(
             map=dict(
-                style="carto-positron",
-                center=dict(lat=lat, lon=lon),
-                zoom=11,
+                style="open-street-map",  # Carga mapa de calles estándar libre
+                center=dict(lat=st.session_state.lat, lon=st.session_state.lon),
+                zoom=10  # Ajusta el nivel de zoom a nivel local/calle
             ),
-            uirevision="slider_rerender_fix",
-            height=700,
+            height=600,
             margin=dict(l=0, r=0, t=0, b=0),
-            showlegend=False,
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
 
-        st.plotly_chart(fig, use_container_width=True, key="plotly_map_tab4")
+        st.plotly_chart(fig, use_container_width=True)
 
-    # Ejecutar el fragmento
-    render_interactive_sun_map()
-
+    # ¡IMPORTANTE! Llamar a la función del fragmento para que se renderice
+    render_interactive_sun_map_scattergeo()
     
     # ---------------------------------------------------------
     # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada - Corregido)
@@ -1949,6 +1849,7 @@ with tab4:
             "UTC:",
             min_value=0,
             max_value=23,
+            value=st.session_state["slider_utc_animacion_tab4"],
             step=1,
             key="slider_utc_animacion_tab4",
         )
@@ -2076,7 +1977,10 @@ with tab4:
                     ),
                 ).add_to(mapa_animado)
 
-        for h in range(hora_slider_utc + 1):
+        # Usar el valor actual del slider de manera robusta
+        limite_horas = st.session_state.get("slider_utc_animacion_tab4", hora_actual_utc)
+
+        for h in range(limite_horas + 1):
             elev_h, azim_h = spa(
                 fecha_tab4, st.session_state.lat, st.session_state.lon, float(h)
             )
@@ -2199,11 +2103,15 @@ with tab4:
         hora_actual_utc = ahora_utc.hour
         minutos_actuales_frac = ahora_utc.minute / 60.0
 
+        # Inicializar la key del domo si no existe
+        if "slider_utc_animacion_dome_tab4" not in st.session_state:
+            st.session_state["slider_utc_animacion_dome_tab4"] = hora_actual_utc
+
         hora_slider_utc_dome = st.slider(
             "UTC:",
             min_value=0,
             max_value=23,
-            value=datetime.now(pytz.utc).hour,
+            value=st.session_state["slider_utc_animacion_dome_tab4"],
             step=1,
             key="slider_utc_animacion_dome_tab4"
         )
@@ -2385,7 +2293,9 @@ with tab4:
                 tooltip="Solar Trajectory"
             ).add_to(mapa_domo)
 
-        for h in range(hora_slider_utc_dome + 1):
+        limite_horas_dome = st.session_state.get("slider_utc_animacion_dome_tab4", hora_actual_utc)
+
+        for h in range(limite_horas_dome + 1):
             elev_h, azim_h = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, float(h))
             
             pt_h = calcular_punto_polar_domo(st.session_state.lat, st.session_state.lon, azim_h, elev_h, radio_max_km=15.0)
