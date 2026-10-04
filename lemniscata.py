@@ -119,6 +119,10 @@ if "zoom" not in st.session_state:
 if "map_tile_active" not in st.session_state:
     st.session_state.map_tile_active = "Satélite"
 
+# Al principio de todo tu script principal (lemniscata.py)
+if "year" not in st.session_state:
+    st.session_state.year = 2026 # O el año que utilices por defecto
+
 params = st.query_params
 if "lat" in params and "lon" in params:
     try:
@@ -1824,7 +1828,11 @@ with tab4:
             )
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(
+            fig, 
+            use_container_width=True, 
+            config={"responsive": True}
+        )
 
     # ¡IMPORTANTE! Llamar a la función del fragmento para que se renderice
     render_interactive_sun_map_scattergeo()
