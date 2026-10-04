@@ -1607,10 +1607,16 @@ with tab4:
             step=10,
             key="tab4_dia_ano",
         )
+
+        anio_actual = st.session_state.get("year", 2026)
+        fecha_sel_dt_t4 = pd.to_datetime(f"{anio_actual}-01-01") + pd.Timedelta(
+            days=dia_del_ano_tab4 - 1
+        )
             
         fecha_sel_dt_t4 = pd.to_datetime(f"{year}-01-01") + pd.Timedelta(
             days=dia_del_ano_tab4 - 1
         )
+
         date_val_tab4 = fecha_sel_dt_t4.strftime("%d.%m.%Y")
         fecha_sel_str_t4 = fecha_sel_dt_t4.strftime("%d.%m.%Y")
         st.caption(
@@ -1863,7 +1869,6 @@ with tab4:
             "UTC:",
             min_value=0,
             max_value=23,
-            value=st.session_state["slider_utc_animacion_tab4"],
             step=1,
             key="slider_utc_animacion_tab4",
         )
@@ -2125,7 +2130,6 @@ with tab4:
             "UTC:",
             min_value=0,
             max_value=23,
-            value=st.session_state["slider_utc_animacion_dome_tab4"],
             step=1,
             key="slider_utc_animacion_dome_tab4"
         )
