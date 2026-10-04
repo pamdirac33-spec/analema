@@ -1725,7 +1725,7 @@ with tab4:
             key="tab4_hora_utc_fragment_sgeo",
         )
 
-h_sel = float(hora_utc_tab4_slider) + (minutos_actuales_frac if hora_utc_tab4_slider == ahora_utc.hour else 0.0)
+        h_sel = float(hora_utc_tab4_slider) + (minutos_actuales_frac if hora_utc_tab4_slider == ahora_utc.hour else 0.0)
         elev_sol, azim_sol = spa(fecha_tab4, lat_f, lon_f, h_sel)
 
         lat_sol_p, lon_sol_p = calcular_punto_proyectado(lat_f, lon_f, azim_sol, RADIO_TRAYECTORIA_KM)
