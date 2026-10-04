@@ -1599,7 +1599,7 @@ with tab4:
         if "tab4_dia_ano" not in st.session_state:
             st.session_state["tab4_dia_ano"] = dia_actual_t4
 
-        # Slider SIN el parámetro 'value'
+        # Slider del Día del Año
         dia_del_ano_tab4 = st.slider(
             "Day of the Year (Step: 10 days)",
             1,
@@ -1610,10 +1610,6 @@ with tab4:
 
         anio_actual = st.session_state.get("year", 2026)
         fecha_sel_dt_t4 = pd.to_datetime(f"{anio_actual}-01-01") + pd.Timedelta(
-            days=dia_del_ano_tab4 - 1
-        )
-            
-        fecha_sel_dt_t4 = pd.to_datetime(f"{year}-01-01") + pd.Timedelta(
             days=dia_del_ano_tab4 - 1
         )
 
@@ -1660,11 +1656,8 @@ with tab4:
         )
         return lat_dest, lon_dest
 
-
     lat = st.session_state.get("lat", 48.76)
     lon = st.session_state.get("lon", 11.42)
-    #lat = st.session_state.lat
-    #lon = st.session_state.lon
     poblacion = st.session_state.get("poblacion", "Ubicación")
 
     RADIO_TRAYECTORIA_KM = 6.0
@@ -1711,15 +1704,12 @@ with tab4:
             local_loop_str = f"{hl_l:02d}:{ml_l:02d}"
 
             tray_hover_data.append(
-                f"<b>Local Time:</b> {local_loop_str}<br>"
-                f"<b>UTC:</b> {utc_loop_str}<br>"
-                f"<b>Azimuth:</b> {azim_h:.2f}°<br>"
-                f"<b>Elevation:</b> {elev_h:.2f}°"
+                f"Local Time: {local_loop_str} | UTC: {utc_loop_str} | Azimuth: {azim_h:.2f}° | Elevation: {elev_h:.2f}°"
             )
 
-    # Fragmento interactivo: el slider y todo lo que depende de él van dentro
+    # Fragmento interactivo: el slider y el mapa de Folium van dentro
     @st.fragment
-    def render_interactive_sun_map_scattergeo():
+    def render_interactive_sun_map_folium():
         lat_f = st.session_state.get("lat", 48.76)
         lon_f = st.session_state.get("lon", 11.42)
 
@@ -1732,117 +1722,85 @@ with tab4:
             0, 23,
             value=hora_actual_utc,
             step=1,
-            key="tab4_hora_utc_fragment_sgeo",
+            key="tab4_hora_utc_fragment_folium",
         )
 
         h_sel = float(hora_utc_tab4_slider) + (minutos_actuales_frac if hora_utc_tab4_slider == ahora_utc.hour else 0.0)
         elev_sol, azim_sol = spa(fecha_tab4, lat_f, lon_f, h_sel)
-
         lat_sol_p, lon_sol_p = calcular_punto_proyectado(lat_f, lon_f, azim_sol, RADIO_TRAYECTORIA_KM)
 
-        
-        fig = go.Figure()
+        # Crear el mapa base de Folium centrado en la ubicación
+        mapa_sol = folium.Map(
+            location=[lat_f, lon_f],
+            zoom_start=11,
+            tiles="OpenStreetMap"
+        )
 
-        # 1. Círculo de referencia (usando Scattermap)
-        fig.add_trace(go.Scattermap(
-            lat=[p[0] for p in puntos_circulo],
-            lon=[p[1] for p in puntos_circulo],
-            mode='lines',
-            line=dict(color='gray', width=1),
-            name="Referencia",
-            showlegend=False
-        ))
+        # 1. Círculo de referencia (Línea gris discontinua o continua)
+        folium.PolyLine(
+            locations=puntos_circulo,
+            color="gray",
+            weight=1,
+            opacity=0.7
+        ).add_to(mapa_sol)
 
-        # 2. Puntos cardinales (N, S, E, W)
-        fig.add_trace(go.Scattermap(
-            lat=card_lats,
-            lon=card_lons,
-            mode='text',
-            text=card_texts,
-            textfont=dict(size=14, color='black', family="Arial Black"),
-            name="Cardinales",
-            showlegend=False
-        ))
+        # 2. Puntos cardinales (N, S, E, W) usando marcadores de texto limpios
+        for clat, clon, ctxt in zip(card_lats, card_lons, card_texts):
+            folium.Marker(
+                location=[clat, clon],
+                icon=folium.DivIcon(
+                    html=f'<div style="font-size: 14px; font-weight: bold; color: black; font-family: Arial;">{ctxt}</div>'
+                )
+            ).add_to(mapa_sol)
 
-        # 3. Trayectoria solar del día
+        # 3. Trayectoria solar del día (Línea naranja)
         if puntos_tray:
-            tray_lats = [p[0] for p in puntos_tray]
-            tray_lons = [p[1] for p in puntos_tray]
-            fig.add_trace(go.Scattermap(
-                lat=tray_lats,
-                lon=tray_lons,
-                mode='lines',
-                line=dict(color='orange', width=4),
-                name="Trayectoria Solar",
-                hoverinfo='text',
-                text=tray_hover_data
-            ))
+            # Dividimos las coordenadas para pasarlas a PolyLine
+            polyline_coords = [[p[0], p[1]] for p in puntos_tray]
+            folium.PolyLine(
+                locations=polyline_coords,
+                color="orange",
+                weight=4,
+                tooltip="Trayectoria Solar"
+            ).add_to(mapa_sol)
 
-        # 4. Ubicación Central
-        fig.add_trace(go.Scattermap(
-            lat=[st.session_state.lat],
-            lon=[st.session_state.lon],
-            mode='markers+text',
-            marker=dict(size=14, color='red'),
-            text=[poblacion],
-            textposition="bottom right",
-            name="Ubicación Central",
-            hovertemplate=(
-                f"<b>Ubicación:</b> {poblacion}<br>"
-                f"Lat: %{{lat:.4f}}<br>"
-                f"Lon: %{{lon:.4f}}<extra></extra>"
-            )
-        ))
+        # 4. Ubicación Central (Marcador rojo con nombre)
+        folium.Marker(
+            location=[lat_f, lon_f],
+            popup=f"<b>Ubicación:</b> {poblacion}<br>Lat: {lat_f:.4f}<br>Lon: {lon_f:.4f}",
+            icon=folium.Icon(color="red", icon="info-sign")
+        ).add_to(mapa_sol)
 
         # 5. Posición Actual del Sol
         color_sol = "orange" if elev_sol >= 0 else "gray"
         icono_sol = "☀️" if elev_sol >= 0 else "🌙"
 
-        fig.add_trace(go.Scattermap(
-            lat=[lat_sol_p],
-            lon=[lon_sol_p],
-            mode='markers+text',
-            marker=dict(size=16, color=color_sol),
-            text=[icono_sol],
-            textposition="top center",
-            name="Posición del Sol",
-            hovertemplate=(
+        folium.Marker(
+            location=[lat_sol_p, lon_sol_p],
+            popup=(
                 f"<b>Posición del Sol</b><br>"
                 f"Elevación: {elev_sol:.2f}°<br>"
                 f"Azimut: {azim_sol:.2f}°<br>"
-                f"Lat: %{{lat:.4f}}<br>"
-                f"Lon: %{{lon:.4f}}<extra></extra>"
-            )
-        ))
-
-        # Configuración del mapa de calles gratuito (¡Sin appkey necesaria!)
-        fig.update_layout(
-            map=dict(
-                style="open-street-map",  # Carga mapa de calles estándar libre
-                center=dict(lat=lat_f, lon=lon_f),
-                zoom=10  # Ajusta el nivel de zoom a nivel local/calle
+                f"Lat: {lat_sol_p:.4f}<br>"
+                f"Lon: {lon_sol_p:.4f}"
             ),
-            height=600,
-            margin=dict(l=0, r=0, t=0, b=0),
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
+            icon=folium.DivIcon(
+                html=f'<div style="font-size: 22px; text-align: center;">{icono_sol}</div>'
             )
+        ).add_to(mapa_sol)
+
+        # Renderizar en Streamlit con st_folium (usando returned_objects=[] para que responda de forma fluida)
+        st_folium(
+            mapa_sol,
+            width="100%",
+            height=600,
+            key="mapa_sol_folium_tab4",
+            returned_objects=[]
         )
 
-        st.plotly_chart(
-            fig, 
-            use_container_width=True, 
-            config={"responsive": True}
-        )
+    # Llamar a la función del fragmento para renderizar el mapa
+    render_interactive_sun_map_folium()
 
-    # ¡IMPORTANTE! Llamar a la función del fragmento para que se renderice
-    render_interactive_sun_map_scattergeo()
-    
     # ---------------------------------------------------------
     # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada)
     # ---------------------------------------------------------
@@ -1904,7 +1862,7 @@ with tab4:
             st.session_state["map_zoom_t4"] = 12
 
         mapa_animado = folium.Map(
-            location=st.session_state["map_center_t4"],
+            location=[st.session_state.lat, st.session_state.lon],
             zoom_start=st.session_state["map_zoom_t4"],
             tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             attr="Esri World Imagery",
@@ -2096,7 +2054,8 @@ with tab4:
         ).add_to(mapa_animado)
 
         map_output = st_folium(
-            mapa_animado, width="100%", height=700, key="mapa_animado_integrado_tab4"
+            mapa_animado, width="100%", height=700, key="mapa_animado_integrado_tab4", 
+            returned_objects=[]
         )
 
         if map_output and map_output.get("center"):
