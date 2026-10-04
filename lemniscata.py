@@ -1710,6 +1710,9 @@ with tab4:
     # Fragmento interactivo: el slider y todo lo que depende de él van dentro
     @st.fragment
     def render_interactive_sun_map_scattergeo():
+        lat_f = st.session_state.get("lat", 48.76)
+        lon_f = st.session_state.get("lon", 11.42)
+
         ahora_utc = datetime.now(pytz.utc)
         hora_actual_utc = ahora_utc.hour
         minutos_actuales_frac = ahora_utc.minute / 60.0
@@ -1722,13 +1725,12 @@ with tab4:
             key="tab4_hora_utc_fragment_sgeo",
         )
 
-        h_sel = float(hora_utc_tab4_slider) + (minutos_actuales_frac if hora_utc_tab4_slider == ahora_utc.hour else 0.0)
-        elev_sol, azim_sol = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, h_sel)
+h_sel = float(hora_utc_tab4_slider) + (minutos_actuales_frac if hora_utc_tab4_slider == ahora_utc.hour else 0.0)
+        elev_sol, azim_sol = spa(fecha_tab4, lat_f, lon_f, h_sel)
 
-        lat_sol_p, lon_sol_p = calcular_punto_proyectado(
-            st.session_state.lat, st.session_state.lon, azim_sol, RADIO_TRAYECTORIA_KM
-        )
+        lat_sol_p, lon_sol_p = calcular_punto_proyectado(lat_f, lon_f, azim_sol, RADIO_TRAYECTORIA_KM)
 
+        
         fig = go.Figure()
 
         # 1. Círculo de referencia (usando Scattermap)
@@ -1807,7 +1809,7 @@ with tab4:
         fig.update_layout(
             map=dict(
                 style="open-street-map",  # Carga mapa de calles estándar libre
-                center=dict(lat=st.session_state.lat, lon=st.session_state.lon),
+                center=dict(lat=lat_f, lon=lon_f),
                 zoom=10  # Ajusta el nivel de zoom a nivel local/calle
             ),
             height=600,
