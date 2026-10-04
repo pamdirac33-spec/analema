@@ -106,6 +106,37 @@ iframe { background: transparent !important; }
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
+# INICIALIZACIÓN DE ESTADOS
+# ---------------------------------------------------------
+if "lat" not in st.session_state:
+    st.session_state.lat = 48.77568
+    st.session_state.lon = 11.48840
+    st.session_state.poblacion = "Mailing"
+
+if "zoom" not in st.session_state:
+    st.session_state.zoom = 12
+
+if "map_tile_active" not in st.session_state:
+    st.session_state.map_tile_active = "Satélite"
+
+params = st.query_params
+if "lat" in params and "lon" in params:
+    try:
+        new_lat = float(params["lat"])
+        new_lon = float(params["lon"])
+        if new_lat != st.session_state.lat or new_lon != st.session_state.lon:
+            st.session_state.lat = new_lat
+            st.session_state.lon = new_lon
+            st.session_state.poblacion = obtener_nombre_por_coordenadas(new_lat, new_lon)
+    except ValueError:
+        pass
+
+if "lat_comp" not in st.session_state:
+    st.session_state.lat_comp = 41.6333
+    st.session_state.lon_comp = -4.7167
+    st.session_state.poblacion_comp = "Valladolid (España)"
+
+# ---------------------------------------------------------
 # FUNCIONES
 # ---------------------------------------------------------
 def obtener_coordenadas(nombre):
@@ -265,36 +296,6 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
         
     return dias, amanecer_horas, atardecer_horas
 
-# ---------------------------------------------------------
-# INICIALIZACIÓN DE ESTADOS
-# ---------------------------------------------------------
-if "lat" not in st.session_state:
-    st.session_state.lat = 48.77568
-    st.session_state.lon = 11.48840
-    st.session_state.poblacion = "Mailing"
-
-if "zoom" not in st.session_state:
-    st.session_state.zoom = 12
-
-if "map_tile_active" not in st.session_state:
-    st.session_state.map_tile_active = "Satélite"
-
-params = st.query_params
-if "lat" in params and "lon" in params:
-    try:
-        new_lat = float(params["lat"])
-        new_lon = float(params["lon"])
-        if new_lat != st.session_state.lat or new_lon != st.session_state.lon:
-            st.session_state.lat = new_lat
-            st.session_state.lon = new_lon
-            st.session_state.poblacion = obtener_nombre_por_coordenadas(new_lat, new_lon)
-    except ValueError:
-        pass
-
-if "lat_comp" not in st.session_state:
-    st.session_state.lat_comp = 41.6333
-    st.session_state.lon_comp = -4.7167
-    st.session_state.poblacion_comp = "Valladolid (España)"
 
 # ---------------------------------------------------------
 # BARRA LATERAL FIJA
@@ -1649,8 +1650,11 @@ with tab4:
         )
         return lat_dest, lon_dest
 
-    lat = st.session_state.lat
-    lon = st.session_state.lon
+
+    lat = st.session_state.get("lat", 48.76)
+    lon = st.session_state.get("lon", 11.42)
+    #lat = st.session_state.lat
+    #lon = st.session_state.lon
     poblacion = st.session_state.get("poblacion", "Ubicación")
 
     RADIO_TRAYECTORIA_KM = 6.0
@@ -1824,7 +1828,7 @@ with tab4:
     render_interactive_sun_map_scattergeo()
     
     # ---------------------------------------------------------
-    # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada - Corregido)
+    # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada)
     # ---------------------------------------------------------
     st.markdown("---")
     st.markdown("### Sun Trajectory Animation")
