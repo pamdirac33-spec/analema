@@ -1707,25 +1707,28 @@ with tab4:
                 f"Local Time: {local_loop_str} | UTC: {utc_loop_str} | Azimuth: {azim_h:.2f}° | Elevation: {elev_h:.2f}°"
             )
 
-    # Fragmento interactivo: el slider y el mapa de Folium van dentro
-    @st.fragment
+    # Slider de horas UTC fuera del fragmento principal para asegurar su carga inicial en la pestaña
+    ahora_utc = datetime.now(pytz.utc)
+    hora_actual_utc = ahora_utc.hour
+
+    if "tab4_hora_utc_fragment_folium" not in st.session_state:
+        st.session_state["tab4_hora_utc_fragment_folium"] = hora_actual_utc
+
+    hora_utc_tab4_slider = st.slider(
+        "UTC Time (Hours):",
+        0, 23,
+        step=1,
+        key="tab4_hora_utc_fragment_folium",
+    )
+
+    # Función que dibuja el mapa (renderizada directamente, sin bloqueos de fragmento fantasma)
     def render_interactive_sun_map_folium():
         lat_f = st.session_state.get("lat", 48.76)
         lon_f = st.session_state.get("lon", 11.42)
 
-        ahora_utc = datetime.now(pytz.utc)
-        hora_actual_utc = ahora_utc.hour
         minutos_actuales_frac = ahora_utc.minute / 60.0
-
-        hora_utc_tab4_slider = st.slider(
-            "UTC Time (Hours):",
-            0, 23,
-            value=hora_actual_utc,
-            step=1,
-            key="tab4_hora_utc_fragment_folium",
-        )
-
         h_sel = float(hora_utc_tab4_slider) + (minutos_actuales_frac if hora_utc_tab4_slider == ahora_utc.hour else 0.0)
+        
         elev_sol, azim_sol = spa(fecha_tab4, lat_f, lon_f, h_sel)
         lat_sol_p, lon_sol_p = calcular_punto_proyectado(lat_f, lon_f, azim_sol, RADIO_TRAYECTORIA_KM)
 
@@ -1736,7 +1739,7 @@ with tab4:
             tiles="OpenStreetMap"
         )
 
-        # 1. Círculo de referencia (Línea gris discontinua o continua)
+        # 1. Círculo de referencia
         folium.PolyLine(
             locations=puntos_circulo,
             color="gray",
@@ -1744,7 +1747,7 @@ with tab4:
             opacity=0.7
         ).add_to(mapa_sol)
 
-        # 2. Puntos cardinales (N, S, E, W) usando marcadores de texto limpios
+        # 2. Puntos cardinales (N, S, E, W)
         for clat, clon, ctxt in zip(card_lats, card_lons, card_texts):
             folium.Marker(
                 location=[clat, clon],
@@ -1753,9 +1756,8 @@ with tab4:
                 )
             ).add_to(mapa_sol)
 
-        # 3. Trayectoria solar del día (Línea naranja)
+        # 3. Trayectoria solar del día
         if puntos_tray:
-            # Dividimos las coordenadas para pasarlas a PolyLine
             polyline_coords = [[p[0], p[1]] for p in puntos_tray]
             folium.PolyLine(
                 locations=polyline_coords,
@@ -1764,7 +1766,7 @@ with tab4:
                 tooltip="Trayectoria Solar"
             ).add_to(mapa_sol)
 
-        # 4. Ubicación Central (Marcador rojo con nombre)
+        # 4. Ubicación Central
         folium.Marker(
             location=[lat_f, lon_f],
             popup=f"<b>Ubicación:</b> {poblacion}<br>Lat: {lat_f:.4f}<br>Lon: {lon_f:.4f}",
@@ -1789,7 +1791,7 @@ with tab4:
             )
         ).add_to(mapa_sol)
 
-        # Renderizar en Streamlit con st_folium (usando returned_objects=[] para que responda de forma fluida)
+        # Renderizar en Streamlit de forma directa
         st_folium(
             mapa_sol,
             width="100%",
@@ -1798,7 +1800,7 @@ with tab4:
             returned_objects=[]
         )
 
-    # Llamar a la función del fragmento para renderizar el mapa
+    # Llamar directamente a la función para que se pinte en cuanto cargue la pestaña
     render_interactive_sun_map_folium()
 
     # ---------------------------------------------------------
