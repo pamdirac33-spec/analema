@@ -1721,7 +1721,7 @@ with tab4:
         key="tab4_hora_utc_fragment_folium",
     )
 
-    # Función que dibuja el mapa (renderizada directamente, sin bloqueos de fragmento fantasma)
+    # Función que dibuja el mapa con el formato unificado de tooltip y marcador
     def render_interactive_sun_map_folium():
         lat_f = st.session_state.get("lat", 48.76)
         lon_f = st.session_state.get("lon", 11.42)
@@ -1731,6 +1731,42 @@ with tab4:
         
         elev_sol, azim_sol = spa(fecha_tab4, lat_f, lon_f, h_sel)
         lat_sol_p, lon_sol_p = calcular_punto_proyectado(lat_f, lon_f, azim_sol, RADIO_TRAYECTORIA_KM)
+
+        # Cálculo de offset y hora local exacta
+        dst_actual = es_horario_verano(fecha_tab4, lon_f)
+        offset_val = st.session_state.get("offset_sidebar", 1)
+        offset_total = offset_val + (1 if dst_actual else 0)
+
+        h_local_loop = (h_sel + offset_total) % 24
+        hl_h = int(h_local_loop)
+        ml_h = int(round((h_local_loop - hl_h) * 60))
+        if ml_h == 60:
+            hl_h = (hl_h + 1) % 24
+            ml_h = 0
+        hora_local_loop_str = f"{hl_h:02d}:{ml_h:02d}"
+
+        h_utc_int = int(h_sel)
+        m_utc_int = int(round((h_sel - h_utc_int) * 60))
+        if m_utc_int == 60:
+            h_utc_int = (h_utc_int + 1) % 24
+            m_utc_int = 0
+        utc_loop_str = f"{h_utc_int:02d}:{m_utc_int:02d}"
+
+        estado_txt = "Day" if elev_sol >= 0 else "Night"
+
+        # Cálculo del ángulo Este/Oeste (E/W)
+        if 0 <= azim_sol <= 90:
+            az_ew_l = 90 - azim_sol
+            ref_ew_l = "NE"
+        elif 90 < azim_sol <= 180:
+            az_ew_l = azim_sol - 90
+            ref_ew_l = "SE"
+        elif 180 < azim_sol <= 270:
+            az_ew_l = 270 - azim_sol
+            ref_ew_l = "SW"
+        else:
+            az_ew_l = azim_sol - 270
+            ref_ew_l = "NW"
 
         # Crear el mapa base de Folium centrado en la ubicación
         mapa_sol = folium.Map(
@@ -1773,22 +1809,47 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(mapa_sol)
 
-        # 5. Posición Actual del Sol
-        color_sol = "orange" if elev_sol >= 0 else "gray"
+        # 5. Posición Actual del Sol con el mismo estilo y tooltip avanzado
+        color_sol = "orange" if elev_sol >= 0 else "#555555"
         icono_sol = "☀️" if elev_sol >= 0 else "🌙"
+        tam_icono = 32
+        borde_icono = "3px solid red"
+        z_index_val = 1005
+
+        html_sol_anim = f"""
+        <div style="position: relative; width: {tam_icono}px; height: {tam_icono}px; left: -{tam_icono / 2}px; top: -{tam_icono / 2}px; z-index: {z_index_val};">
+            <div style="position: absolute; width: {tam_icono - 4}px; height: {tam_icono - 4}px; background-color: {color_sol};
+                        border-radius: 50%; border: {borde_icono}; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                        display: flex; align-items: center; justify-content: center; font-size: 11px;">
+                {icono_sol}
+            </div>
+            <div style="position: absolute; top: 50%; left: {tam_icono + 4}px; transform: translateY(-50%);
+                        color: #222; font-size: 10px; white-space: nowrap; font-weight: bold; font-family: sans-serif;
+                        text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;">
+                {utc_loop_str}
+            </div>
+        </div>
+        """
 
         folium.Marker(
             location=[lat_sol_p, lon_sol_p],
-            popup=(
-                f"<b>Posición del Sol</b><br>"
-                f"Elevación: {elev_sol:.2f}°<br>"
-                f"Azimut: {azim_sol:.2f}°<br>"
-                f"Lat: {lat_sol_p:.4f}<br>"
-                f"Lon: {lon_sol_p:.4f}"
+            tooltip=folium.Tooltip(
+                f"""
+                <div style="font-size: 12px; font-family: sans-serif; line-height: 1.4;">
+                    <b>Local Time:</b> {hora_local_loop_str}<br>
+                    <b>UTC:</b> {utc_loop_str}<br>
+                    <b>Azimuth:</b> {azim_sol:.2f}°<br>
+                    <b>Elevation:</b> {elev_sol:.2f}°<br>
+                    <b>Angle E/W:</b> {az_ew_l:.2f}° {ref_ew_l}<br>
+                    <b>Status:</b> {estado_txt}
+                </div>
+                """,
             ),
             icon=folium.DivIcon(
-                html=f'<div style="font-size: 22px; text-align: center;">{icono_sol}</div>'
-            )
+                html=html_sol_anim,
+                icon_size=(tam_icono, tam_icono),
+                icon_anchor=(0, 0),
+            ),
         ).add_to(mapa_sol)
 
         # Renderizar en Streamlit de forma directa
@@ -1800,6 +1861,7 @@ with tab4:
             returned_objects=[]
         )
 
+        
     # Llamar directamente a la función para que se pinte en cuanto cargue la pestaña
     render_interactive_sun_map_folium()
 
@@ -1984,6 +2046,8 @@ with tab4:
             color_icono = "orange" if elev_h > 0 else "#222222"
             icono_emoji = "☀️" if elev_h >= 0 else "🌙"
 
+            estado_txt = "Day" if elev_h >= 0 else "Night"
+            
             h_local_loop = (float(h) + offset_total) % 24
             hl_h = int(h_local_loop)
             ml_h = int(round((h_local_loop - hl_h) * 60))
