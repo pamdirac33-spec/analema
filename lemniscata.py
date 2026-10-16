@@ -407,7 +407,16 @@ st.markdown(
 
 st.markdown("---")
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Map", "Animated Analema", "Polar/Cartesian", "Advanced Features", "Cities Comparison", "Daylight Hours", "Resources/Info"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tb8 = st.tabs([
+    "🗺️ Map",
+    "☀️ Animated Analema",
+    "📊 Polar/Cartesian",
+    "⚙️ Advanced Features",
+    "🌍 Cities Comparison",
+    "⏳ Daylight Hours",
+    "ℹ️ Resources/Info",
+    "📖 Manual de Usuario"
+    ])
 
 # ---------------------------------------------------------
 # TAB 1 – MAPA INTERACTIVO (GOOGLE MAPS STYLE)
@@ -463,7 +472,6 @@ with tab1:
                     st.rerun()
 
     with col_capas:
-        # Selector de estilo nativo de Streamlit (limpio, sin flechas ni interferencias)
         nuevo_estilo = st.radio(
             "Map Style",
             options=["Satellite", "Street View"],
@@ -488,7 +496,8 @@ with tab1:
         location=st.session_state.map_center,
         zoom_start=st.session_state.map_zoom,
         tiles=url_tile,
-        attr=attr_tile
+        attr=attr_tile,
+        zoom_control=False # Opcional: para quitar también los botones de zoom si te molestan aquí
     )
 
     # Marcador clásico de ubicación
@@ -508,7 +517,35 @@ with tab1:
         lng_formatter=formatter
     ).add_to(mapa_tab1)
 
-    # (Nota: Eliminamos completamente folium.LayerControl ya que el selector ahora es de Streamlit)
+    # ---------------------------------------------------------
+    # CÁLCULOS DE TIEMPO PARA LA LEYENDA DE LA TAB 1
+    # ---------------------------------------------------------
+    ahora_utc_t1 = datetime.now(pytz.utc)
+    fecha_hoy_str_t1 = ahora_utc_t1.strftime("%d.%m.%Y")
+    
+    offset_val_t1 = st.session_state.get("offset_sidebar", 1)
+    dst_activo_t1 = es_horario_verano(ahora_utc_t1, st.session_state.lon)
+    offset_total_t1 = offset_val_t1 + (1 if dst_activo_t1 else 0)
+
+    h_exacta_t1 = ahora_utc_t1.hour + (ahora_utc_t1.minute / 60.0)
+    h_local_t1 = (h_exacta_t1 + offset_total_t1) % 24
+    hl_t1, ml_t1 = int(h_local_t1), int(round((h_local_t1 - int(h_local_t1)) * 60))
+    if ml_t1 == 60:
+        hl_t1 = (hl_t1 + 1) % 24
+        ml_t1 = 0
+    local_str_t1 = f"{hl_t1:02d}:{ml_t1:02d}"
+    utc_str_t1 = ahora_utc_t1.strftime("%H:%M")
+
+    # 💡 LEYENDA VERTICAL FLOTANTE EN LA TAB 1
+    st.markdown(f"""
+    <div style="position: relative; width: 100%;">
+        <div style="position: absolute; top: 15px; left: 15px; z-index: 999999; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+            <div><b>Date:</b> {fecha_hoy_str_t1}</div>
+            <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+            <div><b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     output_mapa = st_folium(
         mapa_tab1, 
@@ -532,6 +569,7 @@ with tab1:
                 st.session_state.zoom = 13
                 st.session_state.map_zoom = 13
                 st.rerun()
+
                 
 # ---------------------------------------------------------
 # TAB 2 – ANALEMA ANIMADA POR HORAS (UTC)
@@ -1580,14 +1618,13 @@ with tab3:
 
     st.plotly_chart(fig_cartesiano, use_container_width=True, config={"scrollZoom": True, "displayModeBar": True})
                                                                      
-
 # ---------------------------------------------------------
 # TAB 4 – ANIMACIÓN Y TRAYECTORIA SOLAR CON CONTROLES COMUNES
 # ---------------------------------------------------------
 with tab4:
     st.markdown("### Advanced Features")
 
-    # 0. CSS Inyectado
+    # 0. CSS Inyectado para contenedor fijo y ocultar los controles de zoom (+/-) de Folium
     st.markdown(
         """
         <style>
@@ -1608,7 +1645,6 @@ with tab4:
         unsafe_allow_html=True
     )
         
-    # Contenedor con la marca fija
     with st.container():
         st.markdown('<div class="fixed-header"></div>', unsafe_allow_html=True)
             
@@ -1733,7 +1769,9 @@ with tab4:
         key="tab4_hora_utc_fragment_folium",
     )
 
-    # Función del primer mapa
+    # ---------------------------------------------------------
+    # MAPA 1
+    # ---------------------------------------------------------
     def render_interactive_sun_map_folium():
         lat_f = st.session_state.get("lat", 48.76)
         lon_f = st.session_state.get("lon", 11.42)
@@ -1778,18 +1816,11 @@ with tab4:
             az_ew_l = azim_sol - 270
             ref_ew_l = "NW"
 
-        # Leyenda nativa robusta para online
-        st.markdown(f"""
-        <div style="background: rgba(240, 242, 246, 0.95); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; margin-bottom: 8px; color: #222;">
-            <b>Date:</b> {date_val_tab4} | <b>Lat:</b> {lat_f:.2f}° | <b>Lon:</b> {lon_f:.2f}°<br>
-            <b>Local Time:</b> {hora_local_loop_str} | <b>UTC:</b> {utc_loop_str}
-        </div>
-        """, unsafe_allow_html=True)
-
         mapa_sol = folium.Map(
             location=[lat_f, lon_f],
             zoom_start=11,
-            tiles="OpenStreetMap"
+            tiles="OpenStreetMap",
+            zoom_control=False
         )
 
         folium.PolyLine(
@@ -1864,6 +1895,17 @@ with tab4:
             ),
         ).add_to(mapa_sol)
 
+        # 💡 Leyenda vertical superpuesta (Date / Lat-Lon / Local Time-UTC)
+        st.markdown(f"""
+        <div style="position: relative; width: 100%;">
+            <div style="position: absolute; top: 15px; left: 15px; z-index: 999999; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+                <div><b>Date:</b> {date_val_tab4}</div>
+                <div><b>Lat / Lon:</b> {lat_f:.2f}° / {lon_f:.2f}°</div>
+                <div><b>Local Time / UTC:</b> {hora_local_loop_str} / {utc_loop_str}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
         st_folium(
             mapa_sol,
             width=None,
@@ -1875,7 +1917,7 @@ with tab4:
     render_interactive_sun_map_folium()
 
     # ---------------------------------------------------------
-    # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada Completa)
+    # SEGUNDO MAPA (Trayectoria Acumulada)
     # ---------------------------------------------------------
     st.markdown("---")
     st.markdown("### Sun Trajectory Animation")
@@ -1928,10 +1970,14 @@ with tab4:
         if "map_zoom_t4" not in st.session_state:
             st.session_state["map_zoom_t4"] = 12
 
+        # 💡 Leyenda vertical superpuesta
         st.markdown(f"""
-        <div style="background: rgba(240, 242, 246, 0.95); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; margin-bottom: 8px; color: #222;">
-            <b>Date:</b> {date_val_tab4} | <b>Lat:</b> {st.session_state.lat:.2f}° | <b>Lon:</b> {st.session_state.lon:.2f}°<br>
-            <b>Local Time:</b> {local_time_str_anim} | <b>UTC:</b> {utc_time_str_anim}
+        <div style="position: relative; width: 100%;">
+            <div style="position: absolute; top: 15px; left: 15px; z-index: 999999; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+                <div><b>Date:</b> {date_val_tab4}</div>
+                <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+                <div><b>Local Time / UTC:</b> {local_time_str_anim} / {utc_time_str_anim}</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1940,6 +1986,7 @@ with tab4:
             zoom_start=st.session_state["map_zoom_t4"],
             tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             attr="Esri World Imagery",
+            zoom_control=False
         )
 
         lat_rad = math.radians(st.session_state.lat)
@@ -2132,7 +2179,7 @@ with tab4:
     render_mapa_animado_acumulado()
 
     # ---------------------------------------------------------
-    # TERCER MAPA DE LA TAB 4 (Solar Chart Polar Dome Completo)
+    # TERCER MAPA (Solar Chart Polar Dome)
     # ---------------------------------------------------------
     st.markdown("---")
     st.markdown("### Solar Chart Polar Dome")
@@ -2213,11 +2260,16 @@ with tab4:
         if "map_zoom_t4" not in st.session_state:
             st.session_state["map_zoom_t4"] = 12
 
+        # 💡 Leyenda vertical superpuesta (Multilínea con fecha simulada)
         st.markdown(f"""
-        <div style="background: rgba(240, 242, 246, 0.95); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; margin-bottom: 8px; color: #222;">
-            <b>Date:</b> {fecha_real_hoy_str} | <b>Lat:</b> {st.session_state.lat:.2f}° | <b>Lon:</b> {st.session_state.lon:.2f}°<br>
-            <b>Local Time:</b> {local_real_str} | <b>UTC:</b> {utc_real_str}<br>
-            <b>Simulated Date:</b> {sim_date_display} | <b>Simulated Time:</b> {sim_time_display}
+        <div style="position: relative; width: 100%;">
+            <div style="position: absolute; top: 15px; left: 15px; z-index: 999999; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+                <div><b>Date:</b> {fecha_real_hoy_str}</div>
+                <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+                <div><b>Local Time / UTC:</b> {local_real_str} / {utc_real_str}</div>
+                <div><b>Sim. Date:</b> {sim_date_display}</div>
+                <div><b>Sim. Time:</b> {sim_time_display}</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2225,7 +2277,8 @@ with tab4:
             location=[st.session_state.lat, st.session_state.lon],
             zoom_start=11,
             tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            attr="Esri World Imagery"
+            attr="Esri World Imagery",
+            zoom_control=False
         )
 
         def calcular_punto_polar_domo(lat_orig, lon_orig, azim_deg, elev_deg, radio_max_km=15.0):
@@ -3263,3 +3316,138 @@ with tab7:
 }"""
         st.code(mbse_codigo, language="text")
         st.info("This conceptual model describes the object-oriented and functional architecture of the solar analysis tool.")
+
+# ---------------------------------------------------------
+# TAB 8 – MANUAL DE USUARIO Y FUNDAMENTOS TEÓRICOS
+# ---------------------------------------------------------
+with tab8:
+    st.markdown("## 📖 Manual de Usuario y Guía Completa del Sistema")
+    st.markdown(
+        "Bienvenido al manual de usuario oficial de la aplicación. Esta guía detalla el fundamento astronómico "
+        "del analema y explica de forma exhaustiva el funcionamiento, controles y gráficas de cada una de las 8 pestañas del sistema."
+    )
+    
+    st.divider()
+
+    # --- SECCIÓN 1: FUNDAMENTOS ASTRONÓMICOS ---
+    st.markdown("### ☀️ ¿Qué es el Analema y la Trayectoria Solar?")
+    
+    col_t1, col_t2 = st.columns([1.2, 1])
+    
+    with col_t1:
+        st.markdown("""
+        * **La Trayectoria Diaria del Sol:** Debido a la inclinación del eje de la Tierra (aproximadamente $23.44^{\\circ}$) y su movimiento de traslación alrededor del Sol, la trayectoria que describe el Sol en el cielo cambia cada día del año. 
+          * En verano, el Sol sale más al norte, asciende mucho más alto en el cenit y los días son más largos.
+          * En invierno, sale más al sur, se eleva muy poco sobre el horizonte y los días son más cortos.
+        * **¿Qué es el Analema?:** Si tomas una fotografía del Sol **exactamente a la misma hora todos los días del año** desde un mismo punto fijo en la Tierra, el Sol no estará en el mismo sitio. Su posición dibujará una curva cerrada en forma de **"8" alargado**. 
+          * Este gráfico en forma de 8 se denomina **Analema**.
+          * El bucle superior e inferior corresponden a los solsticios, y el cruce central a los equinoccios. Las irregularidades se deben a la excentricidad de la órbita terrestre y a la oblicuidad de la eclíptica.
+        """)
+        
+    with col_t2:
+        st.markdown(
+            """
+            <div style="background: #f0f2f6; padding: 15px; border-radius: 8px; border-left: 4px solid #ff8c00; font-size: 13px; line-height: 1.5;">
+                <b>💡 Clave Astronómica:</b><br>
+                El movimiento aparente del Sol combina dos efectos principales:
+                <br><br>
+                1. <b>Declinación solar:</b> Modifica la altura máxima del Sol cada día del año.<br>
+                2. <b>Ecuación del Tiempo (EoT):</b> Mide el desfase entre el tiempo solar aparente y el tiempo solar medio (reloj), ensanchando el analema horizontalmente en el eje de azimut.
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.divider()
+
+    # --- SECCIÓN 2: GUÍA POR PESTAÑAS Y GRÁFICAS ---
+    st.markdown("### 🗂️ Descripción Funcional por Pestañas")
+
+    tab_m1, tab_m2, tab_m3, tab_m4, tab_m5, tab_m6, tab_m7, tab_m8 = st.tabs([
+        "Tab 1: Mapa", 
+        "Tab 2: Analema Animada", 
+        "Tab 3: Polar/Cartesiano", 
+        "Tab 4: Avanzado",
+        "Tab 5: Comparación",
+        "Tab 6: Horas de Luz",
+        "Tab 7: Recursos",
+        "Tab 8: Manual"
+    ])
+
+    with tab_m1:
+        st.markdown("#### 🗺️ Tab 1 – Mapa Interactivo (Google Maps Style)")
+        st.markdown("""
+        * **Propósito:** Selección visual, interactiva y precisa de la ubicación geográfica de estudio.
+        * **Componentes principales:**
+          * **Buscador de Ubicaciones:** Permite introducir cualquier ciudad o lugar del mundo para geocodificar sus coordenadas automáticamente.
+          * **Selector de Capas (Radio):** Permite alternar instantáneamente entre vistas de *Satélite Híbrido* (*Google Maps*) y *Street View* (*Calles*).
+          * **Interaction Click:** Al hacer clic en cualquier punto del mapa, se actualizan las coordenadas globales y se centra la sesión de manera instantánea.
+          * **Leyenda Flotante Superior:** Muestra de forma sincronizada la fecha actual, las coordenadas exactas de latitud/longitud y la hora local junto a la UTC.
+          * **Coordenadas de Cursor (MousePosition):** Ubicado en la esquina inferior izquierda, rastrea las coordenadas precisas del cursor en tiempo real.
+        """)
+
+    with tab_m2:
+        st.markdown("#### ☀️ Tab 2 – Animated Analema")
+        st.markdown("""
+        * **Propósito:** Analizar la evolución y forma del analema solar en función de la hora UTC y del día del año.
+        * **Gráficas y Controles:**
+          * **Analema por Horas (UTC):** Muestra las 24 curvas del analema correspondientes a cada hora del día con controles de reproducción (*Play/Pause*) y slider horario. Incluye un icono animado del Sol ☀️ y líneas discontinuas para los días clave del año (solsticios y equinoccios).
+          * **Analema: Year Evolution:** Permite visualizar mediante un slider temporal cómo se desplaza el Sol a lo largo de los 365 días del año para una hora UTC fija, con zoom adaptativo y leyenda flotante de coordenadas.
+        """)
+
+    with tab_m3:
+        st.markdown("#### 📊 Tab 3 – Polar/Cartesian Diagrams")
+        st.markdown("""
+        * **Propósito:** Estudiar la bóveda celeste y las trayectorias solares mediante proyecciones polares y cartesianas avanzadas.
+        * **Componentes principales:**
+          * **Controles Fijos Superiores:** Slider interactivo del día del año con pasos de 10 días para recalcular al instante las curvas analemáticas.
+          * **Diagrama Polar:** Representación en cúpula con círculos concéntricos de elevación ($0^{\\circ}$ a $90^{\\circ}$) y marcas azimutales. Dispone de animación por horas UTC y sol activo.
+          * **Diagrama Cartesiano:** Gráfica bidimensional que enfrenta el Azimut en el eje X y la Elevación en el eje Y, con rejillas secundarias y curvas de referencia estacionales.
+        """)
+
+    with tab_m4:
+        st.markdown("#### ⚙️ Tab 4 – Advanced Features (Mapas Espaciales)")
+        st.markdown("""
+        * **Propósito:** Simulación geoespacial avanzada en entornos cartográficos mediante tres mapas interactivos independientes:
+          1. **Mapa 1 (Posición Instantánea):** Ubica el Sol sobre un mapa abierto con búfer de puntos cardinales ($N, S, E, W$) y círculo de trayectoria diurna.
+          2. **Mapa 2 (Trayectoria Acumulada 24h):** Dibuja el recorrido completo de 24 horas sobre imágenes de satélite (*Esri World Imagery*), diferenciando tramos diurnos y nocturnos con tooltips detallados.
+          3. **Mapa 3 (Solar Chart Polar Dome):** Proyección cenital en cúpula polar con anillos concéntricos de elevación y trayectorias superpuestas de simulación frente al tiempo real.
+        """)
+
+    with tab_m5:
+        st.markdown("#### 🌍 Tab 5 – Cities Comparison (Comparativa Global)")
+        st.markdown("""
+        * **Propósito:** Comparar simultáneamente las trayectorias y analemas solares de múltiples ciudades del mundo.
+        * **Características:**
+          * **Entrada Multiciudad:** Permite introducir varias localidades separadas por comas (ej. *Ingolstadt, Valladolid, El Cairo*).
+          * **Cálculo de Husos Horarios y DST:** Determina automáticamente los desfasajes horarios y horarios de verano de cada región.
+          * **Animación Conjunta:** Sincroniza las curvas de todas las ciudades mediante un slider de horas UTC y permite activar arcos de días clave e hitos estacionales.
+        """)
+
+    with tab_m6:
+        st.markdown("#### ⏳ Tab 6 – Daylight Hours (Horas de Luz y Calendario)")
+        st.markdown("""
+        * **Propósito:** Analizar la duración del día, las horas de luz (*daylight duration*), los amaneceres y atardeceres a lo largo del año.
+        * **Componentes:**
+          * **Comparativa Gráfica:** Curvas de amanecer y atardecer enfrentadas entre la ubicación principal y una ciudad de comparación secundaria.
+          * **Estadísticas Anuales:** Resúmenes automáticos del día más largo (verano), el día más corto (invierno) y porcentajes globales de luz frente a oscuridad.
+          * **Desktop Solar Calendar:** Tabla interactiva de alta densidad con desplazamiento automático inteligente que se posiciona de forma nativa en la fecha de hoy.
+        """)
+
+    with tab_m7:
+        st.markdown("#### ℹ️ Tab 7 – Resources/Info & MBSE Model")
+        st.markdown("""
+        * **Propósito:** Información de autoría, metadatos del proyecto y especificación formal de la arquitectura del sistema.
+        * **Características:**
+          * **Créditos:** Datos de creación y herramientas colaborativas de desarrollo (*Copilot* y *Gemini*).
+          * **Modelo MBSE mySISL:** Mediante un checkbox interactivo, despliega la arquitectura de bloques orientada a objetos del sistema (*UI_Subsystem*, *Calculation_Engine*, *External_Services*, *Visualization_Engine*).
+        """)
+
+    with tab_m8:
+        st.markdown("#### 📖 Tab 8 – Manual de Usuario")
+        st.markdown("""
+        * **Propósito:** Documentación interactiva integrada dentro de la propia aplicación para guiar al usuario en la interpretación de los modelos solares, fórmulas astronómicas y el uso operativo de todas las pestañas.
+        """)
+
+    st.divider()
+    st.success("✨ **Consejo de Navegación:** Cualquier cambio realizado en la ubicación principal (Tab 1) o en los selectores de fecha se propaga de manera global a través del estado de la sesión (`st.session_state`), actualizando de forma síncrona los cálculos astronómicos en todas las pestañas.")
