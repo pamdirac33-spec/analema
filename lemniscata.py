@@ -492,32 +492,6 @@ with tab1:
         url_tile = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
         attr_tile = "Google Maps Hybrid"
 
-    # 💡 CONTENEDOR RELATIVO PARA ASEGURAR QUE LA TARJETA FLOTE SIEMPRE ENCIMA DEL MAPA
-    st.markdown("""
-    <style>
-    .map-container {
-        position: relative;
-        width: 100%;
-    }
-    .floating-legend-map {
-        position: absolute;
-        top: 15px;
-        left: 15px;
-        z-index: 999999;
-        background: rgba(255, 255, 255, 0.95);
-        padding: 10px 14px;
-        border-radius: 6px;
-        border: 1px solid #bbb;
-        font-family: sans-serif;
-        font-size: 11px;
-        line-height: 1.5;
-        color: #222;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        pointer-events: none; /* Permite hacer clic en el mapa a través de la tarjeta si es necesario */
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     mapa_tab1 = folium.Map(
         location=st.session_state.map_center,
         zoom_start=st.session_state.map_zoom,
@@ -560,17 +534,16 @@ with tab1:
     local_str_t1 = f"{hl_t1:02d}:{ml_t1:02d}"
     utc_str_t1 = ahora_utc_t1.strftime("%H:%M")
 
-    # Renderizamos la tarjeta flotante y el mapa dentro del contenedor
-    st.markdown(f"""
-    <div class="map-container">
-        <div class="floating-legend-map">
-            <div><b>Date:</b> {fecha_hoy_str_t1}</div>
-            <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-            <div><b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
-        </div>
+    # 💡 LEYENDA FLOTANTE INTERNA CON MARGEN PERFECTO (Tab 1)
+    from branca.element import Element
+    legend_html_t1 = f"""
+    <div style="position: absolute; top: 20px; left: 20px; z-index: 999999; background: rgba(255, 255, 255, 0.95); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: auto;">
+        <div><b>Date:</b> {fecha_hoy_str_t1}</div>
+        <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+        <div><b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
     </div>
-    """, unsafe_allow_html=True)
-
+    """
+    mapa_tab1.get_root().html.add_child(Element(legend_html_t1))
     output_mapa = st_folium(
         mapa_tab1, 
         width=None, 
