@@ -535,17 +535,15 @@ with tab1:
     utc_str_t1 = ahora_utc_t1.strftime("%H:%M")
 
     # 💡 Leyenda flotante interna con margen de seguridad anti-cortes
-    from branca.element import Element
-    
-    legend_html_t1 = f"""
-    <div style="position: absolute; top: 45px; left: 45px; z-index: 999999; background: rgba(255, 255, 255, 0.96); padding: 12px 16px; border-radius: 8px; border: 1px solid #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.6; color: #1e293b; box-shadow: 0 4px 12px rgba(0,0,0,0.15); pointer-events: auto;">
-        <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
-        <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-        <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
+    st.markdown(f"""
+    <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -75px; top: 15px; left: 15px;">
+        <div style="background: rgba(255, 255, 255, 0.96); padding: 12px 16px; border-radius: 8px; border: 1px solid #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.6; color: #1e293b; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+            <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
+            <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+            <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
+        </div>
     </div>
-    """
-    
-    mapa_tab1.get_root().html.add_child(Element(legend_html_t1))
+    """, unsafe_allow_html=True)
     
     output_mapa = st_folium(
         mapa_tab1, 
