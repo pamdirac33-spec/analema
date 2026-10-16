@@ -1608,6 +1608,7 @@ with tab4:
         unsafe_allow_html=True
     )
         
+    # Contenedor con la marca fija
     with st.container():
         st.markdown('<div class="fixed-header"></div>', unsafe_allow_html=True)
             
@@ -1732,6 +1733,7 @@ with tab4:
         key="tab4_hora_utc_fragment_folium",
     )
 
+    # Función del primer mapa
     def render_interactive_sun_map_folium():
         lat_f = st.session_state.get("lat", 48.76)
         lon_f = st.session_state.get("lon", 11.42)
@@ -1776,23 +1778,19 @@ with tab4:
             az_ew_l = azim_sol - 270
             ref_ew_l = "NW"
 
+        # Leyenda nativa robusta para online
+        st.markdown(f"""
+        <div style="background: rgba(240, 242, 246, 0.95); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; margin-bottom: 8px; color: #222;">
+            <b>Date:</b> {date_val_tab4} | <b>Lat:</b> {lat_f:.2f}° | <b>Lon:</b> {lon_f:.2f}°<br>
+            <b>Local Time:</b> {hora_local_loop_str} | <b>UTC:</b> {utc_loop_str}
+        </div>
+        """, unsafe_allow_html=True)
+
         mapa_sol = folium.Map(
             location=[lat_f, lon_f],
             zoom_start=11,
             tiles="OpenStreetMap"
         )
-
-        # 💡 LEYENDA AÑADIDA AQUÍ (Para solucionar el problema de las leyendas faltantes)
-        info_box_sol = f"""
-        <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.85); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; line-height: 1.4; color: #222;">
-            <b>Date:</b> {date_val_tab4}<br>
-            <b>Lat:</b> {lat_f:.2f}°<br>
-            <b>Lon:</b> {lon_f:.2f}°<br>
-            <b>Local Time:</b> {hora_local_loop_str}<br>
-            <b>UTC:</b> {utc_loop_str}
-        </div>
-        """
-        mapa_sol.get_root().html.add_child(folium.Element(info_box_sol))
 
         folium.PolyLine(
             locations=puntos_circulo,
@@ -1866,7 +1864,6 @@ with tab4:
             ),
         ).add_to(mapa_sol)
 
-        # 💡 width=None aplicado para evitar errores de renderizado en PCs y modo online
         st_folium(
             mapa_sol,
             width=None,
@@ -1878,12 +1875,11 @@ with tab4:
     render_interactive_sun_map_folium()
 
     # ---------------------------------------------------------
-    # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada)
+    # SEGUNDO MAPA DE LA TAB 4 (Trayectoria Acumulada Completa)
     # ---------------------------------------------------------
     st.markdown("---")
     st.markdown("### Sun Trajectory Animation")
 
-    @st.fragment
     def render_mapa_animado_acumulado():
         ahora_utc = datetime.now(pytz.utc)
         hora_actual_utc = ahora_utc.hour
@@ -1932,23 +1928,19 @@ with tab4:
         if "map_zoom_t4" not in st.session_state:
             st.session_state["map_zoom_t4"] = 12
 
+        st.markdown(f"""
+        <div style="background: rgba(240, 242, 246, 0.95); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; margin-bottom: 8px; color: #222;">
+            <b>Date:</b> {date_val_tab4} | <b>Lat:</b> {st.session_state.lat:.2f}° | <b>Lon:</b> {st.session_state.lon:.2f}°<br>
+            <b>Local Time:</b> {local_time_str_anim} | <b>UTC:</b> {utc_time_str_anim}
+        </div>
+        """, unsafe_allow_html=True)
+
         mapa_animado = folium.Map(
             location=[st.session_state.lat, st.session_state.lon],
             zoom_start=st.session_state["map_zoom_t4"],
             tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             attr="Esri World Imagery",
         )
-
-        info_box_anim = f"""
-        <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.85); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; line-height: 1.4; color: #222;">
-            <b>Date:</b> {date_val_tab4}<br>
-            <b>Lat:</b> {st.session_state.lat:.2f}°<br>
-            <b>Lon:</b> {st.session_state.lon:.2f}°<br>
-            <b>Local Time:</b> {local_time_str_anim}<br>
-            <b>UTC:</b> {utc_time_str_anim}
-        </div>
-        """
-        mapa_animado.get_root().html.add_child(folium.Element(info_box_anim))
 
         lat_rad = math.radians(st.session_state.lat)
         lon_rad = math.radians(st.session_state.lon)
@@ -2124,7 +2116,6 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign"),
         ).add_to(mapa_animado)
 
-        # 💡 width=None aplicado
         map_output = st_folium(
             mapa_animado, width=None, height=700, key="mapa_animado_integrado_tab4", 
             returned_objects=[]
@@ -2140,14 +2131,12 @@ with tab4:
 
     render_mapa_animado_acumulado()
 
-
     # ---------------------------------------------------------
-    # TERCER MAPA DE LA TAB 4 (Esfera / Cúpula Polar 3D)
+    # TERCER MAPA DE LA TAB 4 (Solar Chart Polar Dome Completo)
     # ---------------------------------------------------------
     st.markdown("---")
     st.markdown("### Solar Chart Polar Dome")
 
-    @st.fragment
     def render_mapa_domo_polar():
         ahora_utc = datetime.now(pytz.utc)
         hora_actual_utc = ahora_utc.hour
@@ -2224,25 +2213,20 @@ with tab4:
         if "map_zoom_t4" not in st.session_state:
             st.session_state["map_zoom_t4"] = 12
 
+        st.markdown(f"""
+        <div style="background: rgba(240, 242, 246, 0.95); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; margin-bottom: 8px; color: #222;">
+            <b>Date:</b> {fecha_real_hoy_str} | <b>Lat:</b> {st.session_state.lat:.2f}° | <b>Lon:</b> {st.session_state.lon:.2f}°<br>
+            <b>Local Time:</b> {local_real_str} | <b>UTC:</b> {utc_real_str}<br>
+            <b>Simulated Date:</b> {sim_date_display} | <b>Simulated Time:</b> {sim_time_display}
+        </div>
+        """, unsafe_allow_html=True)
+
         mapa_domo = folium.Map(
             location=[st.session_state.lat, st.session_state.lon],
             zoom_start=11,
             tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             attr="Esri World Imagery"
         )
-
-        info_box_dome = f"""
-        <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.85); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; line-height: 1.4; color: #222;">
-            <b>Date:</b> {fecha_real_hoy_str}<br>
-            <b>Lat:</b> {st.session_state.lat:.2f}°<br>
-            <b>Lon:</b> {st.session_state.lon:.2f}°<br>
-            <b>Local Time:</b> {local_real_str}<br>
-            <b>UTC:</b> {utc_real_str}<br>
-            <b>Simulated Date:</b> {sim_date_display}<br>
-            <b>Simulated Time:</b> {sim_time_display}
-        </div>
-        """
-        mapa_domo.get_root().html.add_child(folium.Element(info_box_dome))
 
         def calcular_punto_polar_domo(lat_orig, lon_orig, azim_deg, elev_deg, radio_max_km=15.0):
             distancia_km = radio_max_km * (1.0 - (elev_deg / 90.0))
@@ -2530,10 +2514,10 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(mapa_domo)
 
-        # 💡 width=None aplicado
         st_folium(mapa_domo, width=None, height=700, key="mapa_domo_polar_tab4", returned_objects=[])
 
     render_mapa_domo_polar()
+
     
 # ---------------------------------------------------------
 # TAB 5 – COMPARACIÓN ENTRE CIUDADES (UTC)
