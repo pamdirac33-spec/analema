@@ -407,7 +407,7 @@ st.markdown(
 
 st.markdown("---")
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tb8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🗺️ Map",
     "☀️ Animated Analema",
     "📊 Polar/Cartesian",
@@ -3321,7 +3321,7 @@ with tab7:
 # TAB 8 – MANUAL DE USUARIO Y FUNDAMENTOS TEÓRICOS
 # ---------------------------------------------------------
 with tab8:
-    st.markdown("## 📖 Manual de Usuario y Guía Completa del Sistema")
+    st.markdown("## 📖 Manual de Usuario")
     st.markdown(
         "Bienvenido al manual de usuario oficial de la aplicación. Esta guía detalla el fundamento astronómico "
         "del analema y explica de forma exhaustiva el funcionamiento, controles y gráficas de cada una de las 8 pestañas del sistema."
