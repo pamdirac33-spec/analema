@@ -536,10 +536,10 @@ with tab1:
     local_str_t1 = f"{hl_t1:02d}:{ml_t1:02d}"
     utc_str_t1 = ahora_utc_t1.strftime("%H:%M")
 
-    # 💡 INYECCIÓN DIRECTA DE LA LEYENDA DENTRO DE FOLIUM (Tab 1)
+    # 💡 LEYENDA FLOTANTE INTERNA EN EL MAPA (Tab 1)
     from branca.element import Element
     legend_html_t1 = f"""
-    <div style="position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+    <div style="position: absolute; top: 15px; left: 15px; z-index: 999999; background: rgba(255, 255, 255, 0.92); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.3); pointer-events: auto;">
         <div><b>Date:</b> {fecha_hoy_str_t1}</div>
         <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
         <div><b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
