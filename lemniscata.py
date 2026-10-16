@@ -1580,6 +1580,7 @@ with tab3:
 
     st.plotly_chart(fig_cartesiano, use_container_width=True, config={"scrollZoom": True, "displayModeBar": True})
                                                                      
+
 # ---------------------------------------------------------
 # TAB 4 – ANIMACIÓN Y TRAYECTORIA SOLAR CON CONTROLES COMUNES
 # ---------------------------------------------------------
