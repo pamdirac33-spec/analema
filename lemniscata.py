@@ -3276,14 +3276,10 @@ with tab7:
 
     st.markdown("---")
     
-    # Checkbox para mostrar u ocultar el Modelo MBSE mySISL
-    mostrar_mbse = st.checkbox("📐 Show MBSE mySISL", value=False, key="chk_mostrar_mbse")
-
-    if mostrar_mbse:
-        st.markdown("### 📐 MBSE mySISL (System Architecture)")
-        st.markdown("Below is the formal representation of the application's components, functional blocks, and interfaces under the standard **MBSE mySISL**:")
+    st.markdown("### 📐 MBSE mySISL (System Architecture)")
+    st.markdown("Below is the formal representation of the application's components, functional blocks, and interfaces under the standard **MBSE mySISL**:")
         
-        mbse_codigo = """SYSTEM AnalemaSolarApp {
+    mbse_codigo = """SYSTEM AnalemaSolarApp {
     ACTOR User;
     
     BLOCK UI_Subsystem {
@@ -3314,8 +3310,8 @@ with tab7:
     Calculation_Engine --> Visualization_Engine : Proporciona matrices de Elevación y Azimuth;
     Visualization_Engine --> UI_Subsystem : Renderiza mapas y diagramas interactivos;
 }"""
-        st.code(mbse_codigo, language="text")
-        st.info("This conceptual model describes the object-oriented and functional architecture of the solar analysis tool.")
+    st.code(mbse_codigo, language="text")
+    st.info("This conceptual model describes the object-oriented and functional architecture of the solar analysis tool.")
 
 # ---------------------------------------------------------
 # TAB 8 – MANUAL DE USUARIO Y FUNDAMENTOS TEÓRICOS
