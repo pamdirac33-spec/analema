@@ -1590,7 +1590,6 @@ with tab4:
     st.markdown(
         """
         <style>
-        /* El contenedor fijo */
         div[data-testid="stVerticalBlock"] > div:has(div.fixed-header) {
             position: sticky;
             top: 0rem;
@@ -1608,19 +1607,15 @@ with tab4:
         unsafe_allow_html=True
     )
         
-    # 2. Contenedor con una "marca" (la clase fixed-header)
     with st.container():
         st.markdown('<div class="fixed-header"></div>', unsafe_allow_html=True)
             
-        # 1. Controles superiores (Día del Año)
         ahora_utc_tab4 = datetime.now(pytz.utc)
         dia_actual_t4 = ahora_utc_tab4.timetuple().tm_yday
 
-        # Inicializamos el estado si no existe para evitar conflictos
         if "tab4_dia_ano" not in st.session_state:
             st.session_state["tab4_dia_ano"] = dia_actual_t4
 
-        # Slider del Día del Año
         dia_del_ano_tab4 = st.slider(
             "Day of the Year (Step: 10 days)",
             1,
@@ -1642,7 +1637,6 @@ with tab4:
 
         fecha_tab4 = fecha_sel_dt_t4.to_pydatetime()
 
-        # Offset y ajuste por horario de verano (DST)
         offset_val = st.session_state.get("offset_sidebar", 1)
         dst_activo = es_horario_verano(fecha_tab4, st.session_state.lon)
         offset_total = offset_val + (1 if dst_activo else 0)
@@ -1650,7 +1644,6 @@ with tab4:
     st.divider()
     st.markdown("### Sun Position & Orientation")
 
-    # Función auxiliar global para proyecciones geodésicas
     def calcular_punto_proyectado(lat_orig, lon_orig, azim_deg, distancia_km):
         rad_lat = math.radians(lat_orig)
         rad_lon = math.radians(lon_orig)
@@ -1684,7 +1677,6 @@ with tab4:
     RADIO_TRAYECTORIA_KM = 6.0
     RADIO_CARDINALES_KM = 8.0
 
-    # Precalcular elementos estáticos y la trayectoria solar de forma sincronizada
     puntos_circulo = [
         calcular_punto_proyectado(lat, lon, ang_c, RADIO_CARDINALES_KM)
         for ang_c in np.linspace(0, 360, 100)
@@ -1707,7 +1699,6 @@ with tab4:
             pt = calcular_punto_proyectado(lat, lon, azim_h, RADIO_TRAYECTORIA_KM)
             puntos_tray.append(pt)
             
-            # Hora UTC exacta para este punto de la trayectoria
             h_utc_l = int(h_loop)
             m_utc_l = int(round((h_loop - h_utc_l) * 60))
             if m_utc_l == 60:
@@ -1715,7 +1706,6 @@ with tab4:
                 m_utc_l = 0
             utc_loop_str = f"{h_utc_l:02d}:{m_utc_l:02d}"
 
-            # Hora Local exacta para este punto de la trayectoria
             h_local_l = (h_loop + offset_total) % 24
             hl_l = int(h_local_l)
             ml_l = int(round((h_local_l - hl_l) * 60))
@@ -1728,7 +1718,6 @@ with tab4:
                 f"Local Time: {local_loop_str} | UTC: {utc_loop_str} | Azimuth: {azim_h:.2f}° | Elevation: {elev_h:.2f}°"
             )
 
-    # Slider de horas UTC fuera del fragmento principal para asegurar su carga inicial en la pestaña
     ahora_utc = datetime.now(pytz.utc)
     hora_actual_utc = ahora_utc.hour
 
@@ -1742,7 +1731,6 @@ with tab4:
         key="tab4_hora_utc_fragment_folium",
     )
 
-    # Función que dibuja el mapa con el formato unificado de tooltip y marcador
     def render_interactive_sun_map_folium():
         lat_f = st.session_state.get("lat", 48.76)
         lon_f = st.session_state.get("lon", 11.42)
@@ -1753,7 +1741,6 @@ with tab4:
         elev_sol, azim_sol = spa(fecha_tab4, lat_f, lon_f, h_sel)
         lat_sol_p, lon_sol_p = calcular_punto_proyectado(lat_f, lon_f, azim_sol, RADIO_TRAYECTORIA_KM)
 
-        # Cálculo de offset y hora local exacta
         dst_actual = es_horario_verano(fecha_tab4, lon_f)
         offset_val = st.session_state.get("offset_sidebar", 1)
         offset_total = offset_val + (1 if dst_actual else 0)
@@ -1775,7 +1762,6 @@ with tab4:
 
         estado_txt = "Day" if elev_sol >= 0 else "Night"
 
-        # Cálculo del ángulo Este/Oeste (E/W)
         if 0 <= azim_sol <= 90:
             az_ew_l = 90 - azim_sol
             ref_ew_l = "NE"
@@ -1789,14 +1775,24 @@ with tab4:
             az_ew_l = azim_sol - 270
             ref_ew_l = "NW"
 
-        # Crear el mapa base de Folium centrado en la ubicación
         mapa_sol = folium.Map(
             location=[lat_f, lon_f],
             zoom_start=11,
             tiles="OpenStreetMap"
         )
 
-        # 1. Círculo de referencia
+        # 💡 LEYENDA AÑADIDA AQUÍ (Para solucionar el problema de las leyendas faltantes)
+        info_box_sol = f"""
+        <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.85); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; line-height: 1.4; color: #222;">
+            <b>Date:</b> {date_val_tab4}<br>
+            <b>Lat:</b> {lat_f:.2f}°<br>
+            <b>Lon:</b> {lon_f:.2f}°<br>
+            <b>Local Time:</b> {hora_local_loop_str}<br>
+            <b>UTC:</b> {utc_loop_str}
+        </div>
+        """
+        mapa_sol.get_root().html.add_child(folium.Element(info_box_sol))
+
         folium.PolyLine(
             locations=puntos_circulo,
             color="gray",
@@ -1804,7 +1800,6 @@ with tab4:
             opacity=0.7
         ).add_to(mapa_sol)
 
-        # 2. Puntos cardinales (N, S, E, W)
         for clat, clon, ctxt in zip(card_lats, card_lons, card_texts):
             folium.Marker(
                 location=[clat, clon],
@@ -1813,7 +1808,6 @@ with tab4:
                 )
             ).add_to(mapa_sol)
 
-        # 3. Trayectoria solar del día
         if puntos_tray:
             polyline_coords = [[p[0], p[1]] for p in puntos_tray]
             folium.PolyLine(
@@ -1823,14 +1817,12 @@ with tab4:
                 tooltip="Trayectoria Solar"
             ).add_to(mapa_sol)
 
-        # 4. Ubicación Central
         folium.Marker(
             location=[lat_f, lon_f],
             popup=f"<b>Ubicación:</b> {poblacion}<br>Lat: {lat_f:.4f}<br>Lon: {lon_f:.4f}",
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(mapa_sol)
 
-        # 5. Posición Actual del Sol con el mismo estilo y tooltip avanzado
         color_sol = "orange" if elev_sol >= 0 else "#555555"
         icono_sol = "☀️" if elev_sol >= 0 else "🌙"
         tam_icono = 32
@@ -1873,17 +1865,15 @@ with tab4:
             ),
         ).add_to(mapa_sol)
 
-        # Renderizar en Streamlit de forma directa
+        # 💡 width=None aplicado para evitar errores de renderizado en PCs y modo online
         st_folium(
             mapa_sol,
-            width="100%",
+            width=None,
             height=600,
             key="mapa_sol_folium_tab4",
             returned_objects=[]
         )
-
         
-    # Llamar directamente a la función para que se pinte en cuanto cargue la pestaña
     render_interactive_sun_map_folium()
 
     # ---------------------------------------------------------
@@ -1898,16 +1888,13 @@ with tab4:
         hora_actual_utc = ahora_utc.hour
         minutos_actuales_frac = ahora_utc.minute / 60.0
 
-        # Inicializar la key en session_state si no existe
         if "slider_utc_animacion_tab4" not in st.session_state:
             st.session_state["slider_utc_animacion_tab4"] = hora_actual_utc
 
-        # Cálculo de DST y offset local dentro del fragmento
         dst_actual = es_horario_verano(fecha_tab4, st.session_state.lon)
         offset_val = st.session_state.get("offset_sidebar", 1)
         offset_total = offset_val + (1 if dst_actual else 0)
 
-        # Slider SIN el parámetro 'value' para evitar el AssertionError
         hora_slider_utc = st.slider(
             "UTC:",
             min_value=0,
@@ -1921,7 +1908,6 @@ with tab4:
         else:
             h_sel_anim = float(hora_slider_utc)
 
-        # Cálculo hora UTC con minutos reales para la leyenda
         h_utc_int_a = int(h_sel_anim)
         m_utc_int_a = int(round((h_sel_anim - h_utc_int_a) * 60))
         if m_utc_int_a == 60:
@@ -1929,7 +1915,6 @@ with tab4:
             m_utc_int_a = 0
         utc_time_str_anim = f"{h_utc_int_a:02d}:{m_utc_int_a:02d}"
 
-        # Cálculo hora Local correspondiente con minutos reales para la leyenda
         h_local_a = (h_sel_anim + offset_total) % 24
         hl_a = int(h_local_a)
         ml_a = int(round((h_local_a - hl_a) * 60))
@@ -1953,7 +1938,6 @@ with tab4:
             attr="Esri World Imagery",
         )
 
-        # Leyenda superior izquierda
         info_box_anim = f"""
         <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.85); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; line-height: 1.4; color: #222;">
             <b>Date:</b> {date_val_tab4}<br>
@@ -2039,7 +2023,6 @@ with tab4:
                     ),
                 ).add_to(mapa_animado)
 
-        # Usar el valor actual del slider de manera robusta
         limite_horas = st.session_state.get("slider_utc_animacion_tab4", hora_actual_utc)
 
         for h in range(limite_horas + 1):
@@ -2140,8 +2123,9 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign"),
         ).add_to(mapa_animado)
 
+        # 💡 width=None aplicado
         map_output = st_folium(
-            mapa_animado, width="100%", height=700, key="mapa_animado_integrado_tab4", 
+            mapa_animado, width=None, height=700, key="mapa_animado_integrado_tab4", 
             returned_objects=[]
         )
 
@@ -2170,7 +2154,6 @@ with tab4:
         h_actual_exacta = float(hora_actual_utc) + minutos_actuales_frac
         fecha_real_hoy = ahora_utc
 
-        # Inicializar la key del domo si no existe
         if "slider_utc_animacion_dome_tab4" not in st.session_state:
             st.session_state["slider_utc_animacion_dome_tab4"] = hora_actual_utc
 
@@ -2187,7 +2170,6 @@ with tab4:
         else:
             h_sel_anim_d = float(hora_slider_utc_dome)
 
-        # Cálculo hora UTC de simulación con minutos reales
         h_utc_int_d = int(h_sel_anim_d)
         m_utc_int_d = int(round((h_sel_anim_d - h_utc_int_d) * 60))
         if m_utc_int_d == 60:
@@ -2195,12 +2177,10 @@ with tab4:
             m_utc_int_d = 0
         utc_time_str_dome = f"{h_utc_int_d:02d}:{m_utc_int_d:02d}"
 
-        # Cálculo de DST correcto general
         dst_actual_dome = es_horario_verano(fecha_tab4, st.session_state.lon)
         offset_val_dome = st.session_state.get("offset_sidebar", 1)
         offset_total_dome = offset_val_dome + (1 if dst_actual_dome else 0)
 
-        # Cálculo hora Local simulada correspondiente
         h_local_d = (h_sel_anim_d + offset_total_dome) % 24
         hl_a_d = int(h_local_d)
         ml_a_d = int(round((h_local_d - hl_a_d) * 60))
@@ -2209,9 +2189,6 @@ with tab4:
             ml_a_d = 0
         local_time_str_dome = f"{hl_a_d:02d}:{ml_a_d:02d}"
 
-        # ---------------------------------------------------------
-        # CÁLCULO DE VALORES REALES (AHORA) PARA LA LEYENDA FIJA
-        # ---------------------------------------------------------
         dst_real = es_horario_verano(fecha_real_hoy, st.session_state.lon)
         offset_real_total = offset_val_dome + (1 if dst_real else 0)
         h_local_real_val = (h_actual_exacta + offset_real_total) % 24
@@ -2230,7 +2207,6 @@ with tab4:
         utc_real_str = f"{h_real_utc_int:02d}:{h_real_utc_min:02d}"
         fecha_real_hoy_str = fecha_real_hoy.strftime("%d.%m.%Y")
 
-        # Comprobación de si se han modificado los sliders respecto a los valores actuales/reales
         dia_actual_default = ahora_utc.timetuple().tm_yday
         dia_slider_actual = st.session_state.get("tab4_dia_ano", dia_actual_default)
         dia_modificado = (dia_slider_actual != dia_actual_default)
@@ -2254,7 +2230,6 @@ with tab4:
             attr="Esri World Imagery"
         )
 
-        # Leyenda superior izquierda
         info_box_dome = f"""
         <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.85); padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; font-size: 11px; line-height: 1.4; color: #222;">
             <b>Date:</b> {fecha_real_hoy_str}<br>
@@ -2270,7 +2245,6 @@ with tab4:
 
         def calcular_punto_polar_domo(lat_orig, lon_orig, azim_deg, elev_deg, radio_max_km=15.0):
             distancia_km = radio_max_km * (1.0 - (elev_deg / 90.0))
-            
             if abs(distancia_km) <= 0.001:
                 return [lat_orig, lon_orig]
 
@@ -2361,9 +2335,6 @@ with tab4:
                 icon=folium.DivIcon(html=html_card, icon_size=(60, 20), icon_anchor=(25, 10))
             ).add_to(mapa_domo)
 
-        # ---------------------------------------------------------
-        # TRAYECTORIA COMPLETA DE LA SIMULACIÓN (Pintada en VERDE CLARO)
-        # ---------------------------------------------------------
         horas_loop = np.linspace(0, 24, 120)
         puntos_datos_tray = []
         for h_loop in horas_loop:
@@ -2380,7 +2351,7 @@ with tab4:
                 peso_tray = 2.5
                 dash_tray = "5, 9"
             else:
-                color_tray = "#4ade80"  # Verde claro para la simulación
+                color_tray = "#4ade80"
                 peso_tray = 4
                 dash_tray = None
 
@@ -2392,9 +2363,6 @@ with tab4:
                 tooltip=f"Simulation Trajectory ({date_val_tab4})"
             ).add_to(mapa_domo)
 
-        # ---------------------------------------------------------
-        # TRAYECTORIA COMPLETA DEL SOL REAL DE HOY (Pintada en NARANJA)
-        # ---------------------------------------------------------
         puntos_tray_real = []
         for h_loop in horas_loop:
             elev_r_h, azim_r_h = spa(fecha_real_hoy, st.session_state.lat, st.session_state.lon, float(h_loop))
@@ -2416,11 +2384,7 @@ with tab4:
                 tooltip=f"Real-time Trajectory ({fecha_real_hoy_str})"
             ).add_to(mapa_domo)
 
-        # ---------------------------------------------------------
-        # PINTAR LOS SOLES DE LA TRAYECTORIA REAL HASTA LA HORA ACTUAL
-        # ---------------------------------------------------------
         horas_a_pintar_real = range(hora_actual_utc + 1)
-
         for h in horas_a_pintar_real:
             elev_r_h, azim_r_h = spa(fecha_real_hoy, st.session_state.lat, st.session_state.lon, float(h))
             pt_r_h = calcular_punto_polar_domo(st.session_state.lat, st.session_state.lon, azim_r_h, elev_r_h, radio_max_km=15.0)
@@ -2481,19 +2445,14 @@ with tab4:
                 )
             ).add_to(mapa_domo)
 
-        # ---------------------------------------------------------
-        # PINTAR LA SIMULACIÓN (Sol amarillo)
-        # ---------------------------------------------------------
         limite_horas_dome = st.session_state.get("slider_utc_animacion_dome_tab4", hora_actual_utc)
-
-        # Si no se han modificado ni la hora ni el día, solo mostramos el marcador de la hora actual
         horas_a_pintar = range(limite_horas_dome + 1) if (dia_modificado or hora_modificada) else [hora_slider_utc_dome]
 
         for h in horas_a_pintar:
             elev_h, azim_h = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, float(h))
             pt_h = calcular_punto_polar_domo(st.session_state.lat, st.session_state.lon, azim_h, elev_h, radio_max_km=15.0)
 
-            color_icono = "#FFD700" if elev_h > 0 else "#555555"  # Amarillo para el sol simulado
+            color_icono = "#FFD700" if elev_h > 0 else "#555555"
             estado_txt = "Day" if elev_h >= 0 else "Night"
             icono_emoji = "☀️" if elev_h >= 0 else "🌙"
 
@@ -2570,10 +2529,10 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(mapa_domo)
 
-        st_folium(mapa_domo, width="100%", height=700, key="mapa_domo_polar_tab4", returned_objects=[])
+        # 💡 width=None aplicado
+        st_folium(mapa_domo, width=None, height=700, key="mapa_domo_polar_tab4", returned_objects=[])
 
     render_mapa_domo_polar()
-
     
 # ---------------------------------------------------------
 # TAB 5 – COMPARACIÓN ENTRE CIUDADES (UTC)
