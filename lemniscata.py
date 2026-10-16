@@ -536,16 +536,16 @@ with tab1:
     local_str_t1 = f"{hl_t1:02d}:{ml_t1:02d}"
     utc_str_t1 = ahora_utc_t1.strftime("%H:%M")
 
-    # 💡 LEYENDA VERTICAL FLOTANTE EN LA TAB 1
-    st.markdown(f"""
-    <div style="position: relative; width: 100%;">
-        <div style="position: absolute; top: 15px; left: 15px; z-index: 999999; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
-            <div><b>Date:</b> {fecha_hoy_str_t1}</div>
-            <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-            <div><b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
-        </div>
+    # 💡 INYECCIÓN DIRECTA DE LA LEYENDA DENTRO DE FOLIUM (Tab 1)
+    from branca.element import Element
+    legend_html_t1 = f"""
+    <div style="position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+        <div><b>Date:</b> {fecha_hoy_str_t1}</div>
+        <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+        <div><b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
     </div>
-    """, unsafe_allow_html=True)
+    """
+    mapa_tab1.get_root().html.add_child(Element(legend_html_t1))
 
     output_mapa = st_folium(
         mapa_tab1, 
@@ -1895,16 +1895,16 @@ with tab4:
             ),
         ).add_to(mapa_sol)
 
-        # 💡 Leyenda vertical superpuesta (Date / Lat-Lon / Local Time-UTC)
-        st.markdown(f"""
-        <div style="position: relative; width: 100%;">
-            <div style="position: absolute; top: 15px; left: 15px; z-index: 999999; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
-                <div><b>Date:</b> {date_val_tab4}</div>
-                <div><b>Lat / Lon:</b> {lat_f:.2f}° / {lon_f:.2f}°</div>
-                <div><b>Local Time / UTC:</b> {hora_local_loop_str} / {utc_loop_str}</div>
-            </div>
+        # Inyección de leyenda en el Mapa 1
+        from branca.element import Element
+        legend_html_tab4_1 = f"""
+        <div style="position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+            <div><b>Date:</b> {date_val_tab4}</div>
+            <div><b>Lat / Lon:</b> {lat_f:.2f}° / {lon_f:.2f}°</div>
+            <div><b>Local Time / UTC:</b> {hora_local_loop_str} / {utc_loop_str}</div>
         </div>
-        """, unsafe_allow_html=True)
+        """
+        mapa_sol.get_root().html.add_child(Element(legend_html_tab4_1))
 
         st_folium(
             mapa_sol,
@@ -1969,17 +1969,6 @@ with tab4:
             ]
         if "map_zoom_t4" not in st.session_state:
             st.session_state["map_zoom_t4"] = 12
-
-        # 💡 Leyenda vertical superpuesta
-        st.markdown(f"""
-        <div style="position: relative; width: 100%;">
-            <div style="position: absolute; top: 15px; left: 15px; z-index: 999999; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
-                <div><b>Date:</b> {date_val_tab4}</div>
-                <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-                <div><b>Local Time / UTC:</b> {local_time_str_anim} / {utc_time_str_anim}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
         mapa_animado = folium.Map(
             location=[st.session_state.lat, st.session_state.lon],
@@ -2163,6 +2152,17 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign"),
         ).add_to(mapa_animado)
 
+        # 💡 Inyección de leyenda interna mediante Branca Element
+        from branca.element import Element
+        legend_html_tab4_2 = f"""
+        <div style="position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+            <div><b>Date:</b> {date_val_tab4}</div>
+            <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+            <div><b>Local Time / UTC:</b> {local_time_str_anim} / {utc_time_str_anim}</div>
+        </div>
+        """
+        mapa_animado.get_root().html.add_child(Element(legend_html_tab4_2))
+
         map_output = st_folium(
             mapa_animado, width=None, height=700, key="mapa_animado_integrado_tab4", 
             returned_objects=[]
@@ -2259,19 +2259,6 @@ with tab4:
             ]
         if "map_zoom_t4" not in st.session_state:
             st.session_state["map_zoom_t4"] = 12
-
-        # 💡 Leyenda vertical superpuesta (Multilínea con fecha simulada)
-        st.markdown(f"""
-        <div style="position: relative; width: 100%;">
-            <div style="position: absolute; top: 15px; left: 15px; z-index: 999999; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
-                <div><b>Date:</b> {fecha_real_hoy_str}</div>
-                <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-                <div><b>Local Time / UTC:</b> {local_real_str} / {utc_real_str}</div>
-                <div><b>Sim. Date:</b> {sim_date_display}</div>
-                <div><b>Sim. Time:</b> {sim_time_display}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
         mapa_domo = folium.Map(
             location=[st.session_state.lat, st.session_state.lon],
@@ -2567,8 +2554,21 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(mapa_domo)
 
-        st_folium(mapa_domo, width=None, height=700, key="mapa_domo_polar_tab4", returned_objects=[])
+        # 💡 Inyección de leyenda interna mediante Branca Element
+        from branca.element import Element
+        legend_html_tab4_3 = f"""
+        <div style="position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+            <div><b>Date:</b> {fecha_real_hoy_str}</div>
+            <div><b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+            <div><b>Local Time / UTC:</b> {local_real_str} / {utc_real_str}</div>
+            <div><b>Sim. Date:</b> {sim_date_display}</div>
+            <div><b>Sim. Time:</b> {sim_time_display}</div>
+        </div>
+        """
+        mapa_domo.get_root().html.add_child(Element(legend_html_tab4_3))
 
+        st_folium(mapa_domo, width=None, height=700, key="mapa_domo_polar_tab4", returned_objects=[])
+        
     render_mapa_domo_polar()
 
     
