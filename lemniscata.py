@@ -2554,11 +2554,13 @@ with tab4:
 
         # 💡 Leyenda flotante interna con margen de seguridad anti-cortes
         st.markdown(f"""
-        <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -200px; top: 15px; left: 15px;">
+        <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -220px; top: 15px; left: 15px;">
             <div style="background: rgba(255, 255, 255, 0.96); padding: 12px 16px; border-radius: 8px; border: 1px solid #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.6; color: #1e293b; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
+                <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_real_hoy_str}</div>
                 <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-                <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
+                <div style="margin-bottom: 2px;">⏰ <b>Local Time / UTC:</b> {local_real_str} / {utc_real_str}</div>
+                <div style="margin-bottom: 2px;">⚙️ <b>Sim. Date:</b> {sim_date_display}</div>
+                <div>⏱️ <b>Sim. Time:</b> {sim_time_display}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
