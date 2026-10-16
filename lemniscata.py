@@ -536,7 +536,7 @@ with tab1:
 
     # 💡 Leyenda flotante interna con margen de seguridad anti-cortes
     st.markdown(f"""
-    <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -150px; top: 15px; left: 15px;">
+    <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -200px; top: 15px; left: 15px;">
         <div style="background: rgba(255, 255, 255, 0.96); padding: 12px 16px; border-radius: 8px; border: 1px solid #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.6; color: #1e293b; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
             <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
             <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
@@ -1893,16 +1893,16 @@ with tab4:
             ),
         ).add_to(mapa_sol)
 
-        # Inyección de leyenda en el Mapa 1
-        from branca.element import Element
-        legend_html_tab4_1 = f"""
-        <div style="position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.94); padding: 10px 14px; border-radius: 6px; border: 1px solid #bbb; font-family: sans-serif; font-size: 11px; line-height: 1.5; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
-            <div><b>Date:</b> {date_val_tab4}</div>
-            <div><b>Lat / Lon:</b> {lat_f:.2f}° / {lon_f:.2f}°</div>
-            <div><b>Local Time / UTC:</b> {hora_local_loop_str} / {utc_loop_str}</div>
+        # 💡 Leyenda flotante interna con margen de seguridad anti-cortes
+        st.markdown(f"""
+        <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -200px; top: 15px; left: 15px;">
+            <div style="background: rgba(255, 255, 255, 0.96); padding: 12px 16px; border-radius: 8px; border: 1px solid #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.6; color: #1e293b; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
+                <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+                <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
+            </div>
         </div>
-        """
-        mapa_sol.get_root().html.add_child(Element(legend_html_tab4_1))
+        """, unsafe_allow_html=True)
 
         st_folium(
             mapa_sol,
