@@ -422,7 +422,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
 # TAB 1 – MAPA INTERACTIVO (GOOGLE MAPS STYLE)
 # ---------------------------------------------------------
 with tab1:
-    # CSS para normalizar el cursor en el mapa
+    # CSS para normalizar el cursor y fijar el contenedor de la leyenda al mapa
     st.markdown("""
     <style>
     .folium-map, .folium-map *, .leaflet-container {
@@ -430,6 +430,36 @@ with tab1:
     }
     .leaflet-interactive {
         cursor: pointer !important;
+    }
+    /* Contenedor relativo que abraza estrictamente al mapa */
+    .map-wrapper {
+        position: relative;
+        width: 100%;
+    }
+    /* Leyenda flotante anclada al contenedor del mapa */
+    .map-floating-legend {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        z-index: 999999;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(4px);
+        padding: 10px 14px;
+        border-radius: 6px;
+        border: 1px solid #94a3b8;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #1e293b;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        pointer-events: none;
+    }
+    @media (prefers-color-scheme: dark) {
+        .map-floating-legend {
+            background: rgba(30, 30, 30, 0.92);
+            border: 1px solid #475569;
+            color: #f3f4f6;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -534,32 +564,17 @@ with tab1:
     local_str_t1 = f"{hl_t1:02d}:{ml_t1:02d}"
     utc_str_t1 = ahora_utc_t1.strftime("%H:%M")
 
-    # 💡 LEYENDA INTEGRADA EN LA CÚPULA DEL MAPA (Estilo idéntico a Tab 2 / Plotly annotations)
-    # Se inyecta como un control HTML nativo flotante de Leaflet en la esquina superior izquierda
-    legend_html = f"""
-    <div style="
-        position: fixed; 
-        top: 15px; 
-        left: 15px; 
-        z-index: 1000; 
-        background: rgba(255, 255, 255, 0.85); 
-        padding: 8px 12px; 
-        border-radius: 4px; 
-        border: 1px solid #ccc; 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-        font-size: 11px; 
-        color: black;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-        pointer-events: none;
-    ">
-        <b>Date:</b> {fecha_hoy_str_t1}<br>
-        <b>Lat:</b> {st.session_state.lat:.2f}°<br>
-        <b>Lon:</b> {st.session_state.lon:.2f}°<br>
-        <b>Local Time:</b> {local_str_t1}<br>
-        <b>UTC:</b> {utc_str_t1}
+    # ABRIMOS EL CONTENEDOR ANCLADO AL MAPA
+    st.markdown('<div class="map-wrapper">', unsafe_allow_html=True)
+    
+    # LEYENDA FLOTANTE INTERNA (Garantiza visibilidad online sin separarse del mapa)
+    st.markdown(f"""
+    <div class="map-floating-legend">
+        <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
+        <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+        <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
     </div>
-    """
-    mapa_tab1.get_root().html.add_child(folium.Element(legend_html))
+    """, unsafe_allow_html=True)
     
     output_mapa = st_folium(
         mapa_tab1, 
@@ -570,6 +585,9 @@ with tab1:
         zoom=st.session_state.map_zoom,
         returned_objects=["last_clicked"]
     )
+    
+    # CERRAMOS EL CONTENEDOR
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if output_mapa:
         if output_mapa.get("last_clicked"):
