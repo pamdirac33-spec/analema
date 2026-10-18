@@ -497,7 +497,7 @@ with tab1:
         zoom_start=st.session_state.map_zoom,
         tiles=url_tile,
         attr=attr_tile,
-        zoom_control=False # Opcional: para quitar también los botones de zoom si te molestan aquí
+        zoom_control=False 
     )
 
     # Marcador clásico de ubicación
@@ -534,16 +534,32 @@ with tab1:
     local_str_t1 = f"{hl_t1:02d}:{ml_t1:02d}"
     utc_str_t1 = ahora_utc_t1.strftime("%H:%M")
 
-    # 💡 Leyenda flotante interna con margen de seguridad anti-cortes
-    st.markdown(f"""
-    <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -200px; top: 15px; left: 15px;">
-        <div style="background: rgba(255, 255, 255, 0.96); padding: 12px 16px; border-radius: 8px; border: 1px solid #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.6; color: #1e293b; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-            <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
-            <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-            <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
-        </div>
+    # 💡 LEYENDA INTEGRADA EN LA CÚPULA DEL MAPA (Estilo idéntico a Tab 2 / Plotly annotations)
+    # Se inyecta como un control HTML nativo flotante de Leaflet en la esquina superior izquierda
+    legend_html = f"""
+    <div style="
+        position: fixed; 
+        top: 15px; 
+        left: 15px; 
+        z-index: 1000; 
+        background: rgba(255, 255, 255, 0.85); 
+        padding: 8px 12px; 
+        border-radius: 4px; 
+        border: 1px solid #ccc; 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+        font-size: 11px; 
+        color: black;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        pointer-events: none;
+    ">
+        <b>Date:</b> {fecha_hoy_str_t1}<br>
+        <b>Lat:</b> {st.session_state.lat:.2f}°<br>
+        <b>Lon:</b> {st.session_state.lon:.2f}°<br>
+        <b>Local Time:</b> {local_str_t1}<br>
+        <b>UTC:</b> {utc_str_t1}
     </div>
-    """, unsafe_allow_html=True)
+    """
+    mapa_tab1.get_root().html.add_child(folium.Element(legend_html))
     
     output_mapa = st_folium(
         mapa_tab1, 
@@ -567,7 +583,6 @@ with tab1:
                 st.session_state.zoom = 13
                 st.session_state.map_zoom = 13
                 st.rerun()
-
                 
 # ---------------------------------------------------------
 # TAB 2 – ANALEMA ANIMADA POR HORAS (UTC)
