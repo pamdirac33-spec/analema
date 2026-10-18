@@ -1655,7 +1655,7 @@ with tab3:
 with tab4:
     st.markdown("### Advanced Features")
 
-    # 0. CSS Inyectado para contenedor fijo y ocultar los controles de zoom (+/-) de Folium
+    # 0. CSS Inyectado para contenedor fijo, ocultar controles y estilizar las leyendas flotantes en online
     st.markdown(
         """
         <style>
@@ -1670,6 +1670,36 @@ with tab4:
             padding-right: 20px;
             border-bottom: 1px solid #eeeeee;
             margin-bottom: 20px;
+        }
+        /* Contenedor relativo que abraza estrictamente a cada mapa */
+        .map-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        /* Leyenda flotante anclada al contenedor del mapa */
+        .map-floating-legend {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 999999;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(4px);
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid #94a3b8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #1e293b;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+        @media (prefers-color-scheme: dark) {
+            .map-floating-legend {
+                background: rgba(30, 30, 30, 0.92);
+                border: 1px solid #475569;
+                color: #f3f4f6;
+            }
         }
         </style>
         """,
@@ -1926,14 +1956,14 @@ with tab4:
             ),
         ).add_to(mapa_sol)
 
-        # 💡 Leyenda flotante interna con margen de seguridad anti-cortes
+        # Contenedor anclado para el Mapa 1
+        st.markdown('<div class="map-wrapper">', unsafe_allow_html=True)
+        
         st.markdown(f"""
-        <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -200px; top: 15px; left: 15px;">
-            <div style="background: rgba(255, 255, 255, 0.96); padding: 12px 16px; border-radius: 8px; border: 1px solid #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.6; color: #1e293b; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
-                <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-                <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
-            </div>
+        <div class="map-floating-legend">
+            <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
+            <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+            <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1944,6 +1974,7 @@ with tab4:
             key="mapa_sol_folium_tab4",
             returned_objects=[]
         )
+        st.markdown('</div>', unsafe_allow_html=True)
         
     render_interactive_sun_map_folium()
 
@@ -2183,14 +2214,14 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign"),
         ).add_to(mapa_animado)
 
-        # 💡 Leyenda flotante interna con margen de seguridad anti-cortes
+        # Contenedor anclado para el Mapa 2
+        st.markdown('<div class="map-wrapper">', unsafe_allow_html=True)
+        
         st.markdown(f"""
-        <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -200px; top: 15px; left: 15px;">
-            <div style="background: rgba(255, 255, 255, 0.96); padding: 12px 16px; border-radius: 8px; border: 1px solid #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.6; color: #1e293b; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
-                <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-                <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
-            </div>
+        <div class="map-floating-legend">
+            <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_hoy_str_t1}</div>
+            <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+            <div>⏰ <b>Local Time / UTC:</b> {local_str_t1} / {utc_str_t1}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2198,6 +2229,7 @@ with tab4:
             mapa_animado, width=None, height=700, key="mapa_animado_integrado_tab4", 
             returned_objects=[]
         )
+        st.markdown('</div>', unsafe_allow_html=True)
 
         if map_output and map_output.get("center"):
             st.session_state["map_center_t4"] = [
@@ -2585,23 +2617,23 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(mapa_domo)
 
-        # 💡 Leyenda flotante interna con margen de seguridad anti-cortes
+        # Contenedor anclado para el Mapa 3 (Domo Polar)
+        st.markdown('<div class="map-wrapper">', unsafe_allow_html=True)
+        
         st.markdown(f"""
-        <div style="position: relative; z-index: 999999; width: fit-content; pointer-events: none; margin-bottom: -220px; top: 15px; left: 15px;">
-            <div style="background: rgba(255, 255, 255, 0.96); padding: 12px 16px; border-radius: 8px; border: 1px solid #94a3b8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.6; color: #1e293b; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_real_hoy_str}</div>
-                <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
-                <div style="margin-bottom: 2px;">⏰ <b>Local Time / UTC:</b> {local_real_str} / {utc_real_str}</div>
-                <div style="margin-bottom: 2px;">⚙️ <b>Sim. Date:</b> {sim_date_display}</div>
-                <div>⏱️ <b>Sim. Time:</b> {sim_time_display}</div>
-            </div>
+        <div class="map-floating-legend">
+            <div style="margin-bottom: 2px;">📅 <b>Date:</b> {fecha_real_hoy_str}</div>
+            <div style="margin-bottom: 2px;">📍 <b>Lat / Lon:</b> {st.session_state.lat:.2f}° / {st.session_state.lon:.2f}°</div>
+            <div style="margin-bottom: 2px;">⏰ <b>Local Time / UTC:</b> {local_real_str} / {utc_real_str}</div>
+            <div style="margin-bottom: 2px;">⚙️ <b>Sim. Date:</b> {sim_date_display}</div>
+            <div>⏱️ <b>Sim. Time:</b> {sim_time_display}</div>
         </div>
         """, unsafe_allow_html=True)
 
         st_folium(mapa_domo, width=None, height=700, key="mapa_domo_polar_tab4", returned_objects=[])
+        st.markdown('</div>', unsafe_allow_html=True)
         
     render_mapa_domo_polar()
-
     
 # ---------------------------------------------------------
 # TAB 5 – COMPARACIÓN ENTRE CIUDADES (UTC)
