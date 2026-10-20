@@ -253,6 +253,9 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
     except (TypeError, ValueError):
         lat, lon = 48.77568, 11.48840
 
+    # Obtener el año activo globalmente (soporta cambios de año en el calendario)
+    anio_actual = globals().get('year', 2026)
+
     # Obtener la zona horaria real basada en las coordenadas
     tz_str = tf.timezone_at(lat=lat, lng=lon)
     local_tz = pytz.timezone(tz_str) if tz_str else pytz.utc
@@ -263,15 +266,15 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
     lat_rad = np.radians(lat)
 
     for dia in dias:
-        fecha_actual = datetime(2026, 1, 1) + timedelta(days=int(dia) - 1)
+        # Evaluamos al mediodía (12:00) para evitar ambigüedades en los días de cambio de hora (DST)
+        fecha_actual = datetime(anio_actual, 1, 1) + timedelta(days=int(dia) - 1, hours=12)
         
-        # Obtener el offset exacto en horas usando pytz (maneja DST automáticamente si usar_dst=True)
+        # Obtener el offset exacto en horas usando pytz de forma robusta
         if usar_dst:
             localized_dt = local_tz.localize(fecha_actual, is_dst=None)
             offset_horas = localized_dt.utcoffset().total_seconds() / 3600.0
         else:
-            # Si no se usa DST, fijamos el offset estándar de invierno (enero)
-            localized_dt = local_tz.localize(datetime(fecha_actual.year, 1, 1), is_dst=False)
+            localized_dt = local_tz.localize(datetime(fecha_actual.year, 1, 1, 12, 0), is_dst=False)
             offset_horas = localized_dt.utcoffset().total_seconds() / 3600.0
 
         gamma = 2.0 * np.pi * (dia - 1) / 365.0
@@ -282,7 +285,6 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
                 0.006758 * np.cos(2 * gamma) - 0.000907 * np.sin(2 * gamma) - 
                 0.002697 * np.cos(3 * gamma) + 0.00148 * np.sin(3 * gamma))
         
-        # Evitar errores de dominio en arccos asegurando límites estrictos
         val_cos = (np.cos(np.radians(90.833)) / (np.cos(lat_rad) * np.cos(decl))) - (np.tan(lat_rad) * np.tan(decl))
         cos_ha = np.clip(val_cos, -1.0, 1.0)
         ha = np.degrees(np.arccos(cos_ha))
@@ -291,7 +293,6 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
         amanecer_utc_min = mediodia_utc_minutos - (ha * 4)
         atardecer_utc_min = mediodia_utc_minutos + (ha * 4)
         
-        # Aplicar el offset real de la zona horaria en lugar de la aproximación por longitud
         h_amanecer = (amanecer_utc_min / 60.0) + offset_horas
         h_atardecer = (atardecer_utc_min / 60.0) + offset_horas
             
@@ -299,7 +300,6 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
         atardecer_horas.append(h_atardecer % 24)
         
     return dias, amanecer_horas, atardecer_horas
-
 
 # ---------------------------------------------------------
 # BARRA LATERAL FIJA
@@ -1107,6 +1107,173 @@ with tab2:
     )
 
     st.plotly_chart(fig2, use_container_width=True)
+
+
+    # =========================================================
+    # GRÁFICA AVANZADA: ÓRBITA ELÍPTICA (EXCENTRICIDAD) Y ESFERAS 3D
+    # =========================================================
+    st.markdown("---")
+    st.markdown("### 🌍 Earth's Elliptical Orbit & 3D Spheres")
+    st.caption("Visualizes orbital eccentricity (Kepler's laws), axial tilt, and 3D shaded spheres for the Sun and Earth.")
+
+    # 1. Parámetros de la órbita con excentricidad exagerada didácticamente
+    dias_orbita = np.arange(0, 365, 3)
+    theta_orbita = np.linspace(0, 2 * np.pi, len(dias_orbita))
+    
+    # Excentricidad visual acentuada para mostrar los focos y la elipse
+    radio_a = 13.0  # Semieje mayor
+    radio_b = 10.5  # Semieje menor (elipse más notable)
+    
+    # Desplazamiento del centro para colocar el Sol en uno de los focos de la elipse
+    foco_offset = np.sqrt(radio_a**2 - radio_b**2)
+    
+    x_orbita = radio_a * np.cos(theta_orbita) - foco_offset
+    y_orbita = radio_b * np.sin(theta_orbita)
+
+    fechas_orbita = [datetime(year, 1, 1) + timedelta(days=int(d)) for d in dias_orbita]
+    fechas_orbita_str = [f.strftime("%d.%m.%Y") for f in fechas_orbita]
+
+    fig_orbita = go.Figure()
+
+    # Línea de la órbita elíptica
+    fig_orbita.add_trace(go.Scatter(
+        x=x_orbita, y=y_orbita, mode="lines",
+        line=dict(color="rgba(100, 150, 255, 0.5)", width=2.5, dash="dash"),
+        name="Orbit", hoverinfo="skip"
+    ))
+
+    # Sol en el foco de la elipse con efecto 3D (gradiente radial)
+    fig_orbita.add_trace(go.Scatter(
+        x=[-foco_offset], y=[0], mode="markers",
+        marker=dict(
+            size=45,
+            color="gold",
+            gradient=dict(type="radial", color="orangered"),
+            line=dict(color="darkorange", width=2)
+        ),
+        hovertext="Sun (Focus of the ellipse)", hoverinfo="text", name="Sun"
+    ))
+
+    # Hitos estacionales clave en la órbita
+    hitos_orbitales = {
+        80: ("Spring Equinox", -foco_offset, radio_b, "green"),
+        172: ("Summer Solstice", -radio_a - foco_offset, 0, "red"),
+        266: ("Autumn Equinox", -foco_offset, -radio_b, "orange"),
+        355: ("Winter Solstice (Perihelion - closest to Sun)", radio_a - foco_offset, 0, "blue")
+    }
+
+    for d_idx, (nombre_hito, h_x, h_y, h_color) in hitos_orbitales.items():
+        fig_orbita.add_trace(go.Scatter(
+            x=[h_x], y=[h_y], mode="markers+text",
+            marker=dict(size=10, color=h_color, symbol="diamond"),
+            text=[f"  {nombre_hito.split('(')[0]}"], textposition="top center",
+            textfont=dict(size=9, color=h_color),
+            name=nombre_hito, showlegend=False,
+            hovertext=f"<b>{nombre_hito}</b>", hoverinfo="text"
+        ))
+
+    idx_init = min(dia_actual_idx // 3, len(dias_orbita) - 1)
+    
+    # 2. Función para renderizar la Tierra como esfera 3D, eje inclinado y rayos de luz
+    def obtener_trazos_tierra_3d(x_t, y_t, f_str, dia_num):
+        trazos = []
+        
+        # Rayos de luz solar desde el Sol (-foco_offset, 0) hasta la posición de la Tierra
+        trazos.append(go.Scatter(
+            x=[-foco_offset, x_t], y=[0, y_t], mode="lines",
+            line=dict(color="rgba(255, 215, 0, 0.7)", width=1.8, dash="dot"),
+            hoverinfo="skip", showlegend=False
+        ))
+
+        # Eje de inclinación axial de la Tierra (23.44°)
+        eje_len = 2.2
+        angulo_eje = np.radians(23.44)
+        dx_eje = eje_len * np.sin(angulo_eje)
+        dy_eje = eje_len * np.cos(angulo_eje)
+
+        trazos.append(go.Scatter(
+            x=[x_t - dx_eje, x_t + dx_eje], y=[y_t - dy_eje, y_t + dy_eje], mode="lines",
+            line=dict(color="crimson", width=3),
+            hoverinfo="skip", showlegend=False
+        ))
+
+        # La Tierra como esfera 3D usando gradiente radial (iluminación lateral simulada)
+        trazos.append(go.Scatter(
+            x=[x_t], y=[y_t], mode="markers",
+            marker=dict(
+                size=30,
+                color="deepskyblue",
+                gradient=dict(type="radial", color="midnightblue"),
+                line=dict(color="blue", width=1.5)
+            ),
+            name="Earth",
+            hovertemplate=f"<b>Earth 3D</b><br>Date: {f_str}<br>Day of year: {dia_num}<extra></extra>"
+        ))
+        return trazos
+
+    trazos_iniciales = obtener_trazos_tierra_3d(x_orbita[idx_init], y_orbita[idx_init], fechas_orbita_str[idx_init], dias_orbita[idx_init])
+    for tr in trazos_iniciales:
+        fig_orbita.add_trace(tr)
+
+    # 3. Frames para la animación de traslación
+    frames_orbita = []
+    sliders_orbita = [{
+        "active": idx_init,
+        "x": 0.15, "xanchor": "left",
+        "y": -0.15, "yanchor": "top",
+        "currentvalue": {"prefix": "Date: ", "visible": True},
+        "steps": []
+    }]
+
+    for i, d in enumerate(dias_orbita):
+        f_str = fechas_orbita_str[i]
+        xt = x_orbita[i]
+        yt = y_orbita[i]
+
+        trazos_base = list(fig_orbita.data)[:2 + len(hitos_orbitales)]
+        trazos_tierra_frame = obtener_trazos_tierra_3d(xt, yt, f_str, int(d))
+        
+        frames_orbita.append(go.Frame(data=trazos_base + trazos_tierra_frame, name=str(i)))
+
+        sliders_orbita[0]["steps"].append({
+            "args": [[str(i)], {"frame": {"duration": 150, "redraw": True}, "mode": "immediate"}],
+            "label": f_str,
+            "method": "animate"
+        })
+
+    fig_orbita.frames = frames_orbita
+
+    # 4. Diseño del gráfico
+    fig_orbita.update_layout(
+        sliders=sliders_orbita,
+        height=620,
+        plot_bgcolor="#f7f7f7",
+        paper_bgcolor="#f7f7f7",
+        xaxis=dict(range=[-17, 17], showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(range=[-15, 15], showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x", scaleratio=1),
+        margin=dict(l=40, r=40, t=40, b=60),
+        showlegend=False,
+        updatemenus=[{
+            "type": "buttons",
+            "direction": "left",
+            "showactive": False,
+            "x": 0.0, "xanchor": "left",
+            "y": -0.22, "yanchor": "top",
+            "buttons": [
+                {
+                    "label": "▶", "method": "animate",
+                    "args": [None, {"frame": {"duration": 150, "redraw": True}, "fromcurrent": True}]
+                },
+                {
+                    "label": "⏸", "method": "animate",
+                    "args": [[None], {"frame": {"duration": 0}, "mode": "immediate"}]
+                }
+            ]
+        }]
+    )
+
+    st.plotly_chart(fig_orbita, use_container_width=True)
+    
     
 # ---------------------------------------------------------
 # TAB 3 – DIAGRAMA POLAR Y CARTESIANO CON CONTROLES TEMPORALES Y ANIMACIÓN
@@ -2995,7 +3162,7 @@ with tab6:
     tz_local_1 = obtener_tz_dinamica(st.session_state.lat, st.session_state.lon)
     tz_local_2 = obtener_tz_dinamica(st.session_state.lat_comp, st.session_state.lon_comp)
 
-    ahora_utc = datetime.now(pytz.utc) # Asegúrate de que esta variable esté definida
+    ahora_utc = datetime.now(pytz.utc) 
     ahora_local_1 = ahora_utc.astimezone(tz_local_1)
     ahora_local_2 = ahora_utc.astimezone(tz_local_2)
   
@@ -3092,11 +3259,9 @@ with tab6:
     stats_1 = calcular_estadisticas(fechas_dt, amanecer_1, atardecer_1)
     stats_2 = calcular_estadisticas(fechas_dt, amanecer_2, atardecer_2)
 
-    # Textos de hover con el formato solicitado (Ciudad en negrita y etiqueta Date)
     ciudad_1_bold = f"<b>{st.session_state.poblacion}</b>"
     ciudad_2_bold = f"<b>{st.session_state.poblacion_comp}</b>"
     
-    # Precomputar los textos de hover de forma segura con bucles de Python estándar
     hover_am_1 = [f"<b>{ciudad_1_bold}</b><br>Sunrise: {decimal_a_hhmmss(val)}" for x, val in zip(fechas_str, amanecer_1)]
     hover_at_1 = [f"Sunset: {decimal_a_hhmmss(val)}" for x, val in zip(fechas_str, atardecer_1)]
     hover_am_2 = [f"<b>{ciudad_2_bold}</b><br>Sunrise: {decimal_a_hhmmss(val)}" for x, val in zip(fechas_str, amanecer_2)]
@@ -3104,7 +3269,6 @@ with tab6:
     
     fig = go.Figure()
 
-    # Trazas con el nombre de la ciudad en negrita y sus horas
     fig.add_trace(go.Scatter(
         x=fechas_dt, y=amanecer_1, mode='lines', 
         name=f"<b>{st.session_state.poblacion}</b>", 
@@ -3130,7 +3294,6 @@ with tab6:
         text=hover_at_2, hovertemplate="%{text}<extra></extra>"
     ))
     
-    # Definir fechas clave y añadirlas usando objetos datetime exactos
     dias_clave_lineas = {
         80: ("Spring Equinox", "green"), 172: ("Summer Solstice", "red"),
         266: ("Autumn Equinox", "orange"), 355: ("Winter Solstice", "blue")
@@ -3139,13 +3302,22 @@ with tab6:
     for dia_idx, (label, color) in dias_clave_lineas.items():
         if 0 <= dia_idx < len(fechas_dt):
             fecha_exacta = fechas_dt[dia_idx]
-            
             fig.add_vline(x=fecha_exacta, line_width=0.8, line_dash="dash", line_color=color)
-            
             fig.add_annotation(
                 x=fecha_exacta, y=24.5, text=label, showarrow=False,
                 textangle=-90, font=dict(size=9, color=color), xanchor="left"
             )
+
+    # Línea vertical punteada roja para marcar la fecha actual
+    try:
+        hoy_datetime = datetime(year, datetime.now().month, datetime.now().day)
+        fig.add_vline(x=hoy_datetime, line_width=1.5, line_dash="dash", line_color="red")
+        fig.add_annotation(
+            x=hoy_datetime, y=25.5, text="Today", showarrow=False,
+            textangle=-90, font=dict(size=10, color="red", family="sans-serif"), xanchor="left"
+        )
+    except Exception:
+        pass
 
     fig.update_layout(
         title=dict(text=f"Daylight comparison: {st.session_state.poblacion} vs {st.session_state.poblacion_comp}", font=dict(size=18)),
@@ -3153,15 +3325,9 @@ with tab6:
         yaxis_title="Time of day",
         template="plotly_white",
         hovermode="x unified",
-        hoverlabel=dict(
-            namelength=-1 # Muestra el nombre completo de la traza (la ciudad en negrita) sin recortar
-        ),
+        hoverlabel=dict(namelength=-1),
         yaxis=dict(range=[0, 26], dtick=2),
-        xaxis=dict(
-            type="date", 
-            tickformat="%d.%m",
-            nticks=12
-        ),
+        xaxis=dict(type="date", tickformat="%d.%m", nticks=12),
         margin=dict(t=80)
     )
 
@@ -3193,12 +3359,10 @@ with tab6:
     st.markdown("---")
     st.markdown("### 📅 Desktop Solar Calendar")
 
-    # Control de año
     col_anio_centro, col_boton_hoy = st.columns([2, 2])
     with col_anio_centro:
         anio_sel = st.number_input("Year:", min_value=1000, max_value=2100, value=datetime.now().year, key="anio_solar_cal")
     
-    # Rango: desde el 1 de diciembre del año anterior hasta el 31 de enero del año siguiente
     inicio_rango = datetime(anio_sel - 1, 12, 1)
     fin_rango = datetime(anio_sel + 1, 1, 31)
     fechas_rango = pd.date_range(start=inicio_rango, end=fin_rango)
@@ -3260,7 +3424,6 @@ with tab6:
         
     df = pd.DataFrame(tabla_datos)
 
-    # Construir HTML interactivo con desplazamiento automático a la fecha de hoy
     import streamlit.components.v1 as components
 
     hoy_str = datetime.now().strftime("%d.%m.%Y")
@@ -3324,6 +3487,7 @@ with tab6:
     """
 
     components.html(full_html, height=500, scrolling=False)
+
     
 # ---------------------------------------------------------
 # TAB 7 – RESOURCES / INFO & MBSE mySISL MODEL
