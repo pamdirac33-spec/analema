@@ -1120,91 +1120,140 @@ with tab2:
     dias_orbita = np.arange(0, 365, 3)
     theta_orbita = np.linspace(0, 2 * np.pi, len(dias_orbita))
     
-    # Excentricidad visual acentuada para mostrar los focos y la elipse
-    radio_a = 13.0  # Semieje mayor
-    radio_b = 10.5  # Semieje menor (elipse más notable)
+    radio_a = 30.0  # Semieje mayor
+    radio_b = 15.0  # Semieje menor (elipse más notable)
     
-    # Desplazamiento del centro para colocar el Sol en uno de los focos de la elipse
-    foco_offset = np.sqrt(radio_a**2 - radio_b**2)
+    # Cálculo del foco (c = sqrt(a^2 - b^2))
+    foco_offset = radio_a/2 + 2.0
     
-    x_orbita = radio_a * np.cos(theta_orbita) - foco_offset
-    y_orbita = radio_b * np.sin(theta_orbita)
+    # Órbita base centrada en el origen (0, 0)
+    x_plano = radio_a * np.cos(theta_orbita)
+    y_plano = radio_b * np.sin(theta_orbita)
 
+    # Inclinación 3D del plano orbital (perspectiva para visualizar mejor la traslación)
+    angulo_inclinacion = np.radians(35)
+    
+    def transformar_3d(x, y):
+        x_rot = x * np.cos(angulo_inclinacion) - y * np.sin(angulo_inclinacion)
+        y_rot = x * np.sin(angulo_inclinacion) * 0.4 + y * np.cos(angulo_inclinacion) * 0.75
+        return x_rot, y_rot
+
+    # Aplicar transformación 3D a la órbita
+    x_orbita, y_orbita = transformar_3d(x_plano, y_plano)
+
+    # Posición real del Sol en el FOCO izquierdo (foco_offset, 0) transformada a 3D
+    sun_x_plano = foco_offset
+    sun_y_plano = 0.0
+    sun_x_t, sun_y_t = transformar_3d(sun_x_plano, sun_y_plano)
+
+    # Fechas sin año (formato DD.MM)
     fechas_orbita = [datetime(year, 1, 1) + timedelta(days=int(d)) for d in dias_orbita]
-    fechas_orbita_str = [f.strftime("%d.%m.%Y") for f in fechas_orbita]
+    fechas_orbita_str = [f.strftime("%d.%m") for f in fechas_orbita]
 
     fig_orbita = go.Figure()
+
+    # Línea del Semieje Mayor proyectada en 3D
+    x_may1, y_may1 = transformar_3d(-radio_a, 0)
+    x_may2, y_may2 = transformar_3d(radio_a, 0)
+    fig_orbita.add_trace(go.Scatter(
+        x=[x_may1, x_may2], y=[y_may1, y_may2], mode="lines",
+        line=dict(color="rgba(150, 150, 150, 0.6)", width=1.5, dash="dot"),
+        name="Major Axis", hoverinfo="skip"
+    ))
+
+    # Línea del Semieje Menor proyectada en 3D
+    x_men1, y_men1 = transformar_3d(0, -radio_b)
+    x_men2, y_men2 = transformar_3d(0, radio_b)
+    fig_orbita.add_trace(go.Scatter(
+        x=[x_men1, x_men2], y=[y_men1, y_men2], mode="lines",
+        line=dict(color="rgba(150, 150, 150, 0.6)", width=1.5, dash="dot"),
+        name="Minor Axis", hoverinfo="skip"
+    ))
 
     # Línea de la órbita elíptica
     fig_orbita.add_trace(go.Scatter(
         x=x_orbita, y=y_orbita, mode="lines",
-        line=dict(color="rgba(100, 150, 255, 0.5)", width=2.5, dash="dash"),
+        line=dict(color="rgba(100, 150, 255, 0.7)", width=3, dash="dash"),
         name="Orbit", hoverinfo="skip"
     ))
 
-    # Sol en el foco de la elipse con efecto 3D (gradiente radial)
+    # Sol en el foco exacto de la elipse (-foco_offset, 0) con esfera más grande y efecto 3D
     fig_orbita.add_trace(go.Scatter(
-        x=[-foco_offset], y=[0], mode="markers",
+        x=[sun_x_t], y=[sun_y_t], mode="markers",
         marker=dict(
-            size=45,
+            size=75,  # Esfera del Sol más grande
             color="gold",
             gradient=dict(type="radial", color="orangered"),
-            line=dict(color="darkorange", width=2)
+            line=dict(color="darkorange", width=3)
         ),
         hovertext="Sun (Focus of the ellipse)", hoverinfo="text", name="Sun"
     ))
 
-    # Hitos estacionales clave en la órbita
-    hitos_orbitales = {
-        80: ("Spring Equinox", -foco_offset, radio_b, "green"),
-        172: ("Summer Solstice", -radio_a - foco_offset, 0, "red"),
-        266: ("Autumn Equinox", -foco_offset, -radio_b, "orange"),
-        355: ("Winter Solstice (Perihelion - closest to Sun)", radio_a - foco_offset, 0, "blue")
+    # Hitos estacionales con desplazamiento sutil (muy cerca del icono pero fuera de la curva)
+    hitos_plano = {
+        80: ("Spring Equinox", 0, radio_b * 1.10, "green", "top center"),
+        172: ("Winter Solstice (Perihelion - closest)", radio_a * 1.06, 0, "red", "middle right"),
+        266: ("Autumn Equinox", 0, -radio_b * 1.10, "orange", "bottom center"),
+        355: ("Summer Solstice (Aphelion - furthest)", -radio_a * 1.06, 0, "blue", "middle left")
     }
 
-    for d_idx, (nombre_hito, h_x, h_y, h_color) in hitos_orbitales.items():
+    for d_idx, (nombre_hito, h_x_p, h_y_p, h_color, t_pos) in hitos_plano.items():
+        # Coordenada real sobre la órbita para el marcador de diamante
+        hx_orig, hy_orig = (0, radio_b) if d_idx == 80 else (radio_a, 0) if d_idx == 172 else (0, -radio_b) if d_idx == 266 else (-radio_a, 0)
+        hx_t, hy_t = transformar_3d(hx_orig, hy_orig)
+
+        # Coordenada ligeramente desplazada para el texto (muy cerca del icono)
+        hx_ext_t, hy_ext_t = transformar_3d(h_x_p, h_y_p)
+
+        # 1. Marcador (diamante) en la curva exacta
         fig_orbita.add_trace(go.Scatter(
-            x=[h_x], y=[h_y], mode="markers+text",
-            marker=dict(size=10, color=h_color, symbol="diamond"),
-            text=[f"  {nombre_hito.split('(')[0]}"], textposition="top center",
-            textfont=dict(size=9, color=h_color),
+            x=[hx_t], y=[hy_t], mode="markers",
+            marker=dict(size=12, color=h_color, symbol="diamond"),
             name=nombre_hito, showlegend=False,
             hovertext=f"<b>{nombre_hito}</b>", hoverinfo="text"
         ))
 
+        # 2. Texto pegado al marcador pero fuera de la línea
+        fig_orbita.add_trace(go.Scatter(
+            x=[hx_ext_t], y=[hy_ext_t], mode="text",
+            text=[f" {nombre_hito.split('(')[0]}"], textposition=t_pos,
+            textfont=dict(size=10, color=h_color, family="sans-serif"),
+            showlegend=False, hoverinfo="skip"
+        ))
+
     idx_init = min(dia_actual_idx // 3, len(dias_orbita) - 1)
     
-    # 2. Función para renderizar la Tierra como esfera 3D, eje inclinado y rayos de luz
+    # 2. Función para renderizar la Tierra como esfera 3D grande, eje inclinado y rayos de luz
     def obtener_trazos_tierra_3d(x_t, y_t, f_str, dia_num):
         trazos = []
         
-        # Rayos de luz solar desde el Sol (-foco_offset, 0) hasta la posición de la Tierra
+        # Rayos de luz solar desde la posición real del Sol en el foco hasta la Tierra
         trazos.append(go.Scatter(
-            x=[-foco_offset, x_t], y=[0, y_t], mode="lines",
-            line=dict(color="rgba(255, 215, 0, 0.7)", width=1.8, dash="dot"),
+            x=[sun_x_t, x_t], y=[sun_y_t, y_t], mode="lines",
+            line=dict(color="rgba(255, 215, 0, 0.7)", width=2, dash="dot"),
             hoverinfo="skip", showlegend=False
         ))
 
         # Eje de inclinación axial de la Tierra (23.44°)
-        eje_len = 2.2
+        eje_len = 3.0
         angulo_eje = np.radians(23.44)
         dx_eje = eje_len * np.sin(angulo_eje)
         dy_eje = eje_len * np.cos(angulo_eje)
 
         trazos.append(go.Scatter(
             x=[x_t - dx_eje, x_t + dx_eje], y=[y_t - dy_eje, y_t + dy_eje], mode="lines",
-            line=dict(color="crimson", width=3),
+            line=dict(color="crimson", width=3.5),
             hoverinfo="skip", showlegend=False
         ))
 
-        # La Tierra como esfera 3D usando gradiente radial (iluminación lateral simulada)
+        # La Tierra como esfera 3D más grande usando gradiente radial
         trazos.append(go.Scatter(
             x=[x_t], y=[y_t], mode="markers",
             marker=dict(
-                size=30,
+                size=46,  # Esfera de la Tierra más grande
                 color="deepskyblue",
                 gradient=dict(type="radial", color="midnightblue"),
-                line=dict(color="blue", width=1.5)
+                line=dict(color="blue", width=2)
             ),
             name="Earth",
             hovertemplate=f"<b>Earth 3D</b><br>Date: {f_str}<br>Day of year: {dia_num}<extra></extra>"
@@ -1225,12 +1274,15 @@ with tab2:
         "steps": []
     }]
 
+    # Total de trazos base fijos (Semieje Mayor, Semieje Menor, Órbita, Sol + Hitos de diamantes y textos)
+    num_trazos_base = 4 + (len(hitos_plano) * 2)
+
     for i, d in enumerate(dias_orbita):
         f_str = fechas_orbita_str[i]
         xt = x_orbita[i]
         yt = y_orbita[i]
 
-        trazos_base = list(fig_orbita.data)[:2 + len(hitos_orbitales)]
+        trazos_base = list(fig_orbita.data)[:num_trazos_base]
         trazos_tierra_frame = obtener_trazos_tierra_3d(xt, yt, f_str, int(d))
         
         frames_orbita.append(go.Frame(data=trazos_base + trazos_tierra_frame, name=str(i)))
@@ -1243,14 +1295,14 @@ with tab2:
 
     fig_orbita.frames = frames_orbita
 
-    # 4. Diseño del gráfico
+    # 4. Diseño del gráfico con rangos adaptados para dar aire a las etiquetas exteriores
     fig_orbita.update_layout(
         sliders=sliders_orbita,
         height=620,
         plot_bgcolor="#f7f7f7",
         paper_bgcolor="#f7f7f7",
-        xaxis=dict(range=[-17, 17], showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(range=[-15, 15], showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x", scaleratio=1),
+        xaxis=dict(range=[-18, 18], showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(range=[-13, 13], showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x", scaleratio=1),
         margin=dict(l=40, r=40, t=40, b=60),
         showlegend=False,
         updatemenus=[{
@@ -1273,7 +1325,7 @@ with tab2:
     )
 
     st.plotly_chart(fig_orbita, use_container_width=True)
-    
+
     
 # ---------------------------------------------------------
 # TAB 3 – DIAGRAMA POLAR Y CARTESIANO CON CONTROLES TEMPORALES Y ANIMACIÓN
@@ -3610,12 +3662,18 @@ with tab8:
         """)
 
     with tab_m2:
-        st.markdown("#### ☀️ Tab 2 – Animated Analema")
+        st.markdown("#### ☀️ Tab 2 – Animated Analema & Órbita Elíptica")
         st.markdown("""
-        * **Propósito:** Analizar la evolución y forma del analema solar en función de la hora UTC y del día del año.
+        * **Propósito:** Analizar la evolución y forma del analema solar en función de la hora UTC y comprender el modelo físico de la órbita de la Tierra.
         * **Gráficas y Controles:**
-          * **Analema por Horas (UTC):** Muestra las 24 curvas del analema correspondientes a cada hora del día con controles de reproducción (*Play/Pause*) y slider horario. Incluye un icono animado del Sol ☀️ y líneas discontinuas para los días clave del año (solsticios y equinoccios).
-          * **Analema: Year Evolution:** Permite visualizar mediante un slider temporal cómo se desplaza el Sol a lo largo de los 365 días del año para una hora UTC fija, con zoom adaptativo y leyenda flotante de coordenadas.
+          * **Analema por Horas (UTC):** Muestra las 24 curvas del analema correspondientes a cada hora del día con controles de reproducción y slider horario.
+          * **Analema: Year Evolution:** Permite visualizar mediante un slider temporal cómo se desplaza el Sol a lo largo de los 365 días del año para una hora UTC fija.
+          * **🌍 Earth's Elliptical Orbit & 3D Spheres (Gráfica Avanzada de Órbitas):** 
+            * Representa la **órbita elíptica** de la Tierra con una excentricidad didáctica acentuada.
+            * Incluye las líneas discontinuas del **Semieje Mayor** y el **Semieje Menor** proyectadas en perspectiva 3D.
+            * Sitúa el **Sol en el foco izquierdo** de la elipse (con posición ajustable de manera personalizada) utilizando una esfera 3D grande con gradiente radial de alta iluminación.
+            * Muestra la **Tierra como esfera 3D interactiva** con su eje de inclinación axial de $23.44^{\\circ}$ en rojo y rayos de luz solar dinámicos proyectados desde el foco del Sol.
+            * Incorpora los hitos estacionales (Equinoccios y Solsticios / Perihelio y Afelio) con etiquetas exteriores optimizadas y una línea de tiempo basada en formato corto `DD.MM` sin año.
         """)
 
     with tab_m3:
