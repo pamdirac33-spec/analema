@@ -246,17 +246,15 @@ def obtener_tz_dinamica(lat, lon):
     return pytz.timezone(tz_str) if tz_str else pytz.utc
 
 def calcular_curvas_solares(lat, lon, usar_dst=True):
-    # Asegurar que lat y lon son numéricos
     try:
         lat = float(lat)
         lon = float(lon)
     except (TypeError, ValueError):
         lat, lon = 48.77568, 11.48840
 
-    # Obtener el año activo globalmente (soporta cambios de año en el calendario)
     anio_actual = globals().get('year', 2026)
 
-    # Obtener la zona horaria real basada en las coordenadas
+    # Obtener zona horaria real por coordenadas
     tz_str = tf.timezone_at(lat=lat, lng=lon)
     local_tz = pytz.timezone(tz_str) if tz_str else pytz.utc
 
@@ -266,10 +264,8 @@ def calcular_curvas_solares(lat, lon, usar_dst=True):
     lat_rad = np.radians(lat)
 
     for dia in dias:
-        # Evaluamos al mediodía (12:00) para evitar ambigüedades en los días de cambio de hora (DST)
         fecha_actual = datetime(anio_actual, 1, 1) + timedelta(days=int(dia) - 1, hours=12)
         
-        # Obtener el offset exacto en horas usando pytz de forma robusta
         if usar_dst:
             localized_dt = local_tz.localize(fecha_actual, is_dst=None)
             offset_horas = localized_dt.utcoffset().total_seconds() / 3600.0
@@ -319,19 +315,16 @@ st.sidebar.success("📍 Selected Location")
     
 ahora_utc_sidebar = datetime.now(pytz.utc)
 
-# Cálculo corregido del offset basado en la longitud geográfica aproximada y horario de verano
-es_dst_sidebar = es_horario_verano(datetime.now(), st.session_state.lon)
+# Obtener la zona horaria real y exacta mediante las coordenadas actuales
+tz_str_sidebar = tf.timezone_at(lat=st.session_state.lat, lng=st.session_state.lon)
+local_tz_sidebar = pytz.timezone(tz_str_sidebar) if tz_str_sidebar else pytz.utc
 
-# Corrección de huso horario estándar adaptado a Europa/España (Lon aprox entre -10 y 4 -> UTC+1 o UTC+2)
-if -10 <= st.session_state.lon <= 4:
-    huso_sidebar = 1  # Europa Central / Occidental (España peninsular)
-else:
-    huso_sidebar = int(round(st.session_state.lon / 15.0))
+# Localizar la fecha actual en la zona horaria de la ciudad para obtener el offset exacto con DST
+ahora_local_sidebar = ahora_utc_sidebar.astimezone(local_tz_sidebar)
+offset_sidebar_delta = ahora_local_sidebar.utcoffset()
+offset_sidebar_horas = offset_sidebar_delta.total_seconds() / 3600.0 if offset_sidebar_delta else 0.0
 
-offset_sidebar = huso_sidebar + (1 if es_dst_sidebar else 0)
-ahora_local_sidebar = ahora_utc_sidebar + timedelta(hours=offset_sidebar)
-
-# Calcular el día del año actual basado en la hora local
+# Día del año actual basado en la hora local de la ubicación seleccionada
 dia_del_ano_sidebar = ahora_local_sidebar.timetuple().tm_yday
 
 st.sidebar.markdown(
@@ -340,12 +333,12 @@ st.sidebar.markdown(
 **Lat:** {st.session_state.lat:.5f}°  
 **Lon:** {st.session_state.lon:.5f}°  
 **Date:** {ahora_local_sidebar.strftime('%d.%m.%Y')} (Day {dia_del_ano_sidebar})  
-**Local Time:** {ahora_local_sidebar.strftime('%H:%M:%S')} (UTC {offset_sidebar:+g})  
+**Local Time:** {ahora_local_sidebar.strftime('%H:%M:%S')} (UTC {offset_sidebar_horas:+g})  
 **UTC:** {ahora_utc_sidebar.strftime('%H:%M:%S')}
 """
 )
 
-# Definimos las variables de tiempo basadas en el momento actual
+# Actualizar variables globales de tiempo para el resto del script
 year = ahora_local_sidebar.year
 st.session_state.mes = ahora_local_sidebar.month
 st.session_state.dia = ahora_local_sidebar.day
@@ -397,7 +390,7 @@ st.markdown(
         <div class="big-title">
             <span class='sun-animated'>☀️</span> Interactive Solar Analema
         </div>
-        <div class="sub-title">
+        <div class="sub-title" style="margin-left: 6%;">
             <i>Sun position throughout the day and year at your chosen location</i>
         </div>
     </div>
@@ -549,19 +542,16 @@ with tab1:
 
     # Cálculos de tiempo para la leyenda
     ahora_utc_t1 = datetime.now(pytz.utc)
-    fecha_hoy_str_t1 = ahora_utc_t1.strftime("%d.%m.%Y")
     
-    offset_val_t1 = st.session_state.get("offset_sidebar", 1)
-    dst_activo_t1 = es_horario_verano(ahora_utc_t1, st.session_state.lon)
-    offset_total_t1 = offset_val_t1 + (1 if dst_activo_t1 else 0)
-
-    h_exacta_t1 = ahora_utc_t1.hour + (ahora_utc_t1.minute / 60.0)
-    h_local_t1 = (h_exacta_t1 + offset_total_t1) % 24
-    hl_t1, ml_t1 = int(h_local_t1), int(round((h_local_t1 - int(h_local_t1)) * 60))
-    if ml_t1 == 60:
-        hl_t1 = (hl_t1 + 1) % 24
-        ml_t1 = 0
-    local_str_t1 = f"{hl_t1:02d}:{ml_t1:02d}"
+    # Obtener la zona horaria real y exacta mediante las coordenadas actuales
+    tz_str_t1 = tf.timezone_at(lat=st.session_state.lat, lng=st.session_state.lon)
+    local_tz_t1 = pytz.timezone(tz_str_t1) if tz_str_t1 else pytz.utc
+    
+    # Convertir la hora UTC actual a la hora local exacta de la ubicación seleccionada (con su DST real)
+    ahora_local_t1 = ahora_utc_t1.astimezone(local_tz_t1)
+    
+    fecha_hoy_str_t1 = ahora_local_t1.strftime("%d.%m.%Y")
+    local_str_t1 = ahora_local_t1.strftime("%H:%M")
     utc_str_t1 = ahora_utc_t1.strftime("%H:%M")
 
     # ABRIMOS EL CONTENEDOR ANCLADO AL MAPA
@@ -1375,9 +1365,25 @@ with tab3:
 
         fecha_tab3 = fecha_sel_dt.to_pydatetime()
         
-        offset_val = st.session_state.get('offset_sidebar', 1)
-        dst_activo = es_horario_verano(fecha_tab3, st.session_state.lon)
-        offset_total = offset_val + (1 if dst_activo else 0)
+        # ---------------------------------------------------------
+        # CÁLCULO ROBUSTO DE HORA LOCAL Y ZONA HORARIA (CORREGIDO)
+        # ---------------------------------------------------------
+        tz_str_t3 = tf.timezone_at(lat=st.session_state.lat, lng=st.session_state.lon)
+        local_tz_t3 = pytz.timezone(tz_str_t3) if tz_str_t3 else pytz.utc
+        
+        ahora_local_t3 = ahora_utc_tab3.astimezone(local_tz_t3)
+        offset_total = ahora_local_t3.utcoffset().total_seconds() / 3600.0
+        
+        tiempo_utc_decimal = hora_utc_actual + (minuto_utc_actual / 60.0)
+        tiempo_local_decimal = (tiempo_utc_decimal + offset_total) % 24
+        
+        hl_i = int(tiempo_local_decimal)
+        ml_i = int(round((tiempo_local_decimal - hl_i) * 60))
+        if ml_i >= 60:
+            hl_i = (hl_i + 1) % 24
+            ml_i = 0
+
+        local_time_inicial = f"{hl_i:02d}:{ml_i:02d}"
 
 
     # 2. Generar datos consolidados para las 24 horas (Analemas por hora UTC)
@@ -1387,7 +1393,6 @@ with tab3:
         df_h["hora"] = h
         df_h["r"] = 90 - df_h["elev"]
         
-        # Generar la fecha real para cada fila (asumiendo que las filas van del día 1 al 365)
         fecha_pts = [datetime(year, 1, 1) + timedelta(days=i) for i in range(len(df_h))]
         df_h["date"] = [f.strftime("%d.%m.%Y") for f in fecha_pts]
         
@@ -1409,19 +1414,6 @@ with tab3:
 
     lat_val_c = f"{st.session_state.lat:.3f}°"
     lon_val_c = f"{st.session_state.lon:.3f}°"
-    
-    # Convertir la hora y minutos a decimales para operar el desfase horario correctamente
-    tiempo_utc_decimal = hora_utc_actual + (minuto_utc_actual / 60.0)
-    tiempo_local_decimal = (tiempo_utc_decimal + offset_total) % 24
-    
-    hl_i = int(tiempo_local_decimal)
-    ml_i = int(round((tiempo_local_decimal - hl_i) * 60))
-    if ml_i >= 60:
-        hl_i = (hl_i + 1) % 24
-        ml_i = 0
-
-    # Formatear Local Time con minutos reales
-    local_time_inicial = f"{hl_i:02d}:{ml_i:02d}"
 
     info_text_comun = (
         f"<b>Date:</b> {fecha_hoy_str}<br>"
@@ -1439,7 +1431,7 @@ with tab3:
     fig_polar = px.line_polar(
         df_all_tab3, r="r", theta="azim", animation_frame="hora",
         range_r=[0, 90],
-        custom_data=["date", "hora_str", "elev"],  # Orden estricto para customdata[0], [1], [2]
+        custom_data=["date", "hora_str", "elev"],
         labels={"azim": "Az", "hora": "UTC", "date": "Date", "elev": "El", "hora_str": "UTC Time"}
     )
 
@@ -1447,8 +1439,6 @@ with tab3:
     if not df_init_polar.empty:
         fig_polar.data[0].r = df_init_polar["r"]
         fig_polar.data[0].theta = df_init_polar["azim"]
-        
-        #Actualizar también el customdata inicial para que la fecha coincida
         fig_polar.data[0].customdata = list(zip(
             df_init_polar["date"],
             df_init_polar["hora"],
@@ -1458,12 +1448,11 @@ with tab3:
     fig_polar.update_traces(
         line=dict(width=1.5, color="darkviolet"),
         hovertemplate="<b>UTC: %{customdata[1]:02d}:00</b><br>"
-                              "Azimuth: %{theta:.2f}°<br>"
-                              "Elevation: %{customdata[2]:.2f}°<br>"
-                              "Date: %{customdata[0]}<extra></extra>"
+                      "Azimuth: %{theta:.2f}°<br>"
+                      "Elevation: %{customdata[2]:.2f}°<br>"
+                      "Date: %{customdata[0]}<extra></extra>"
     )
 
-    # Líneas de referencia de la rejilla polar
     for angulo in range(0, 360, 10):
         fig_polar.add_trace(go.Scatterpolar(
             r=[0, 90], theta=[angulo, angulo], mode='lines',
@@ -1471,7 +1460,6 @@ with tab3:
             showlegend=False, hoverinfo='skip'
         ))
 
-    # Trazas estáticas de días clave (Más finas, sin leyenda y con etiquetas enlazadas a la derecha)
     for d_idx, (nombre_hito, color_hito) in dias_polar_dict.items():
         fecha_obj = datetime(year, 1, 1) + timedelta(days=d_idx-1)
         azimuths_t, radios_t, elevs_t = [], [], []
@@ -1485,7 +1473,7 @@ with tab3:
             fig_polar.add_trace(go.Scatterpolar(
                 r=radios_t, theta=azimuths_t, mode='lines',
                 name=nombre_hito, line=dict(width=0.4, color=color_hito, dash="dash"),
-                customdata=elevs_t,  # <-- Inyectamos los datos de elevación
+                customdata=elevs_t,
                 hovertemplate=f"<b>{nombre_hito}</b><br>Azimuth: %{{theta:.2f}}°<br>Elevation: %{{customdata:.2f}}°<extra></extra>",
                 showlegend=False
             ))
@@ -1497,21 +1485,20 @@ with tab3:
                 showlegend=False, hoverinfo='skip'
             ))
 
-    # Curva del día actual seleccionado (Más fina, sin leyenda y con etiqueta a la derecha)
     az_hoy_t, r_hoy_t, el_hoy_t = [], [], []
     for h in np.linspace(0, 24, 100):
         el, az = spa(fecha_tab3, st.session_state.lat, st.session_state.lon, h)
         if el >= 0:
             az_hoy_t.append(az)
             r_hoy_t.append(90 - el)
-            el_hoy_t.append(el)  # <-- Guardamos la elevación real
+            el_hoy_t.append(el)
 
     if az_hoy_t:
         fig_polar.add_trace(go.Scatterpolar(
             r=r_hoy_t, theta=az_hoy_t, mode='lines',
             name=f"Today ({date_val_tab3})",
             line=dict(width=0.4, color="magenta", dash="dash"),
-            customdata=el_hoy_t,  # <-- Inyectamos los datos de elevación
+            customdata=el_hoy_t,
             hovertemplate=f"<b>Today ({date_val_tab3})</b><br>Azimuth: %{{theta:.2f}}°<br>Elevation: %{{customdata:.2f}}°<extra></extra>",
             showlegend=False
         ))
@@ -1525,7 +1512,6 @@ with tab3:
             showlegend=False, hoverinfo='skip'
         ))
 
-    # Etiquetas de hora UTC en los picos (Formato Scatterpolar text)
     hours_r, hours_theta, hours_text = [], [], []
     for h in range(0, 24):
         df_h = df_all_tab3[df_all_tab3["hora"] == h].reset_index(drop=True)
@@ -1542,9 +1528,7 @@ with tab3:
         showlegend=False, hoverinfo="skip"
     ))
 
-    # Sol inicial estático
     el_sun_ini, az_sun_ini = spa(fecha_tab3, st.session_state.lat, st.session_state.lon, float(hora_utc_actual))
-    
     size_sun_ini = 14 if el_sun_ini >= 0 else 0
     text_sun_ini = "☀️" if el_sun_ini >= 0 else ""
     
@@ -1560,16 +1544,13 @@ with tab3:
         hovertemplate=f"<b>Sun Now</b><br>UTC: {hora_utc_actual:02d}:00<br>Azimuth: %{{theta:.2f}}°<br>Elevation: {el_sun_ini:.2f}°<extra></extra>"
     ))
 
-    # Creación de Frames para la animación del slider de horas
     frames = []
     for h in range(0, 24):
         df_h = df_all_tab3[df_all_tab3["hora"] == h]
-        
-        # Usamos zip para preservar los tipos originales (string, int, float)
         custom_data_h = list(zip(
             df_h["date"],
-            df_h["hora"],      # Usamos el número entero para que funcione :02d
-            df_h["elev"]       # Mantenemos el float para que funcione :.2f
+            df_h["hora"],
+            df_h["elev"]
         ))
         
         frame_traces = [
@@ -1580,15 +1561,13 @@ with tab3:
                 customdata=custom_data_h,
                 line=dict(width=1.5, color="darkviolet"),
                 hovertemplate="<b>UTC:</b> %{customdata[1]:02d}:00<br>"
-                                "Azimuth: %{theta:.2f}°<br>"
-                                "Elevation: %{customdata[2]:.2f}°<br>"
-                                "Date: %{customdata[0]}<extra></extra>"
+                              "Azimuth: %{theta:.2f}°<br>"
+                              "Elevation: %{customdata[2]:.2f}°<br>"
+                              "Date: %{customdata[0]}<extra></extra>"
             )
         ]
         
-        # Añadir el sol correspondiente al frame (siempre presente para mantener la estructura de trazas)
         el_sun, az_sun = spa(fecha_tab3, st.session_state.lat, st.session_state.lon, float(h))
-        
         size_sun = 14 if el_sun >= 0 else 0
         text_sun = "☀️" if el_sun >= 0 else ""
         
@@ -1607,7 +1586,6 @@ with tab3:
 
     fig_polar.frames = frames
 
-    # Configuración de Slider y Botones de Reproducción
     sliders = [dict(
         active=hora_utc_actual,
         currentvalue={"prefix": "UTC:"},
@@ -1662,7 +1640,6 @@ with tab3:
 
     fig_cartesiano = go.Figure()
 
-    # 1. Traza dinámica inicial del analema (hora actual UTC seleccionada)
     df_init_cart = df_all_tab3[df_all_tab3["hora"] == hora_utc_actual]
     custom_data_init = list(zip(df_init_cart["date"], df_init_cart["hora"], df_init_cart["azim"], df_init_cart["elev"])) if not df_init_cart.empty else []
 
@@ -1679,7 +1656,6 @@ with tab3:
         showlegend=False
     ))
 
-    # 2. Días clave cartesianos de referencia (Solsticios y Equinoccios)
     for d_idx, (nombre_hito, color_hito) in dias_polar_dict.items():
         fecha_base_hito = datetime(year, 1, 1) + timedelta(days=d_idx-1)
         azimuths_t, elevaciones_t = [], []
@@ -1705,7 +1681,6 @@ with tab3:
                     showlegend=False, hoverinfo='skip'
                 ))
 
-    # 3. Curva cartesiana completa del día seleccionado en el slider superior (fecha_tab3)
     az_hoy_c, el_hoy_c = [], []
     for h_val in np.linspace(0, 24, 150):
         el, az = spa(fecha_tab3, st.session_state.lat, st.session_state.lon, h_val)
@@ -1719,7 +1694,7 @@ with tab3:
             y=el_hoy_c,
             mode='lines',
             name=f"Day {date_val_tab3}",
-            line=dict(width=1.5, color="magenta", dash="dash"),  # 💡 Modifica el grosor aquí si lo deseas
+            line=dict(width=1.5, color="magenta", dash="dash"),
             hovertemplate=f"<b>Day: {date_val_tab3}</b><br>Azimuth: %{{x:.1f}}°<br>Elevation: %{{y:.1f}}°<extra></extra>",
             showlegend=False
         ))
@@ -1741,7 +1716,6 @@ with tab3:
             showlegend=False, hoverinfo='skip'
         ))
 
-    # 4. Etiquetas de hora UTC en los picos (Estilo Tab 2)
     cart_x, cart_y, cart_text = [], [], []
     for h in range(0, 24):
         df_h = df_all_tab3[df_all_tab3["hora"] == h].reset_index(drop=True)
@@ -1758,7 +1732,6 @@ with tab3:
         showlegend=False, hoverinfo="skip"
     ))
 
-    # 5. Sol inicial estático basado en la hora UTC actual
     el_sun_ini, az_sun_ini = spa(fecha_tab3, st.session_state.lat, st.session_state.lon, float(hora_utc_actual))
     fig_cartesiano.add_trace(go.Scatter(
         x=[az_sun_ini if el_sun_ini >= 0 else 0], 
@@ -1772,7 +1745,6 @@ with tab3:
         hovertemplate=f"<b>Sun Now</b><br>UTC: {hora_utc_actual:02d}:00<br>Azimuth: %{{x:.1f}}°<br>Elevation: {el_sun_ini:.1f}°<extra></extra>"
     ))
 
-    # 6. Creación de Frames para la animación horaria
     frames_cart = []
     for h in range(0, 24):
         df_h = df_all_tab3[df_all_tab3["hora"] == h]
@@ -1813,7 +1785,6 @@ with tab3:
 
     fig_cartesiano.frames = frames_cart
 
-    # Controles de animación por hora
     sliders_cart = [dict(
         active=hora_utc_actual, 
         currentvalue={"prefix": "UTC Time="}, 
@@ -1867,7 +1838,7 @@ with tab3:
     )
 
     st.plotly_chart(fig_cartesiano, use_container_width=True, config={"scrollZoom": True, "displayModeBar": True})
-                                                                     
+    
 # ---------------------------------------------------------
 # TAB 4 – ANIMACIÓN Y TRAYECTORIA SOLAR CON CONTROLES COMUNES
 # ---------------------------------------------------------
@@ -2198,7 +2169,7 @@ with tab4:
     render_interactive_sun_map_folium()
 
     # ---------------------------------------------------------
-    # SEGUNDO MAPA (Trayectoria Acumulada)
+    # SEGUNDO MAPA (Trayectoria Acumulada Suavizada)
     # ---------------------------------------------------------
     st.markdown("---")
     st.markdown("### Sun Trajectory Animation")
@@ -2264,42 +2235,83 @@ with tab4:
         R = 6371.0
         dist_km = 6.0
 
-        puntos_24h_completa = []
-        for h in range(24):
-            elev_h, azim_h = spa(
-                fecha_tab4, st.session_state.lat, st.session_state.lon, float(h)
-            )
-            az_rad_h = math.radians(azim_h)
-            lat_h = math.degrees(
+        def obtener_punto_mapa(elev_val, azim_val):
+            az_rad = math.radians(azim_val)
+            l_lat = math.degrees(
                 math.asin(
                     math.sin(lat_rad) * math.cos(dist_km / R)
                     + math.cos(lat_rad)
                     * math.sin(dist_km / R)
-                    * math.cos(az_rad_h)
+                    * math.cos(az_rad)
                 )
             )
-            lon_h = math.degrees(
+            l_lon = math.degrees(
                 lon_rad
                 + math.atan2(
-                    math.sin(az_rad_h) * math.sin(dist_km / R) * math.cos(lat_rad),
+                    math.sin(az_rad) * math.sin(dist_km / R) * math.cos(lat_rad),
                     math.cos(dist_km / R)
-                    - math.sin(lat_rad) * math.sin(math.radians(lat_h)),
+                    - math.sin(lat_rad) * math.sin(math.radians(l_lat)),
                 )
             )
-            puntos_24h_completa.append([lat_h, lon_h])
+            return [l_lat, l_lon]
 
-            if h > 0:
-                h_ant = h - 1
-                utc_line_str = f"{h:02d}:00"
+        # ---------------------------------------------------------
+        # TRAYECTORIA SUAVIZADA DE ALTA RESOLUCIÓN (CADA 10 MINUTOS)
+        # ---------------------------------------------------------
+        horas_suaves = np.linspace(0, 24, 144)
+        puntos_suaves = []
+        for h_s in horas_suaves:
+            el_s, az_s = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, float(h_s))
+            pt_s = obtener_punto_mapa(el_s, az_s)
+            puntos_suaves.append((pt_s, el_s, h_s))
+
+        # Dibujar segmentos suaves diurnos y nocturnos evitando saltos bruscos
+        for i in range(len(puntos_suaves) - 1):
+            pt1, el1, h1 = puntos_suaves[i]
+            pt2, el2, h2 = puntos_suaves[i+1]
+            
+            # Si hay un cambio drástico de azimut (salto de 0 a 360 por el norte), omitir la línea de unión
+            az1 = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, float(h1))[1]
+            az2 = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, float(h2))[1]
+            if abs(az1 - az2) > 180:
+                continue
+
+            es_dia = (el1 >= 0 or el2 >= 0)
+            color_trazo = "orange" if es_dia else "#222222"
+            peso_trazo = 4 if es_dia else 1.5
+            dash_trazo = None if es_dia else "4, 6"
+
+            folium.PolyLine(
+                locations=[pt1, pt2],
+                color=color_trazo,
+                weight=peso_trazo,
+                dash_array=dash_trazo
+            ).add_to(mapa_animado)
+
+        # ---------------------------------------------------------
+        # MARCADORES HORARIOS (0:00 a 23:00)
+        # ---------------------------------------------------------
+        limite_horas = st.session_state.get("slider_utc_animacion_tab4", hora_actual_utc)
+
+        for h in range(24):
+            elev_h, azim_h = spa(fecha_tab4, st.session_state.lat, st.session_state.lon, float(h))
+            pt_h = obtener_punto_mapa(elev_h, azim_h)
+
+            # Mostrar marcadores hasta la hora seleccionada en el slider
+            if h <= limite_horas:
+                color_icono = "orange" if elev_h > 0 else "#555555"
+                icono_emoji = "☀️" if elev_h >= 0 else "🌙"
                 estado_txt = "Day" if elev_h >= 0 else "Night"
                 
-                h_local_line = (float(h) + offset_total) % 24
-                hl_l = int(h_local_line)
-                ml_l = int(round((h_local_line - hl_l) * 60))
-                if ml_l == 60:
-                    hl_l = (hl_l + 1) % 24
-                    ml_l = 0
-                local_line_str = f"{hl_l:02d}:{ml_l:02d}"
+                h_local_loop = (float(h) + offset_total) % 24
+                hl_h = int(h_local_loop)
+                ml_h = int(round((h_local_loop - hl_h) * 60))
+                if ml_h == 60:
+                    hl_h = (hl_h + 1) % 24
+                    ml_h = 0
+
+                hora_local_loop_str = f"{hl_h:02d}:{ml_h:02d}"
+                utc_loop_str = f"{h:02d}:00"
 
                 if 0 <= azim_h <= 90:
                     az_ew_l = 90 - azim_h
@@ -2314,16 +2326,33 @@ with tab4:
                     az_ew_l = azim_h - 270
                     ref_ew_l = "NW"
 
-                folium.PolyLine(
-                    locations=[puntos_24h_completa[h_ant], puntos_24h_completa[h]],
-                    color="orange" if elev_h > 0 else "#222222",
-                    weight=4 if elev_h > 0 else 2.0,
-                    dash_array=None if elev_h > 0 else "5, 5",
+                es_hora_actual = (h == hora_slider_utc)
+                tam_icono = 32 if es_hora_actual else 22
+                borde_icono = "3px solid red" if es_hora_actual else "2px solid #222"
+                z_index_val = 1005 if es_hora_actual else 1000
+
+                html_sol_anim = f"""
+                <div style="position: relative; width: {tam_icono}px; height: {tam_icono}px; left: -{tam_icono / 2}px; top: -{tam_icono / 2}px; z-index: {z_index_val};">
+                    <div style="position: absolute; width: {tam_icono - 4}px; height: {tam_icono - 4}px; background-color: {color_icono};
+                                border-radius: 50%; border: {borde_icono}; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                                display: flex; align-items: center; justify-content: center; font-size: 11px;">
+                            {icono_emoji}
+                        </div>
+                        <div style="position: absolute; top: 50%; left: {tam_icono + 4}px; transform: translateY(-50%);
+                                color: #222; font-size: 10px; white-space: nowrap; font-weight: bold; font-family: sans-serif;
+                                text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;">
+                            {utc_loop_str}
+                        </div>
+                    </div>
+                    """
+
+                folium.Marker(
+                    pt_h,
                     tooltip=folium.Tooltip(
                         f"""
                         <div style="font-size: 12px; font-family: sans-serif; line-height: 1.4;">
-                            <b>Local Time:</b> {local_line_str}<br>
-                            <b>UTC:</b> {utc_line_str}<br>
+                            <b>Local Time:</b> {hora_local_loop_str}<br>
+                            <b>UTC:</b> {utc_loop_str}<br>
                             <b>Azimuth:</b> {azim_h:.2f}°<br>
                             <b>Elevation:</b> {elev_h:.2f}°<br>
                             <b>Angle E/W:</b> {az_ew_l:.2f}° {ref_ew_l}<br>
@@ -2331,101 +2360,12 @@ with tab4:
                         </div>
                         """,
                     ),
+                    icon=folium.DivIcon(
+                        html=html_sol_anim,
+                        icon_size=(tam_icono, tam_icono),
+                        icon_anchor=(0, 0),
+                    ),
                 ).add_to(mapa_animado)
-
-        limite_horas = st.session_state.get("slider_utc_animacion_tab4", hora_actual_utc)
-
-        for h in range(limite_horas + 1):
-            elev_h, azim_h = spa(
-                fecha_tab4, st.session_state.lat, st.session_state.lon, float(h)
-            )
-            az_rad_h = math.radians(azim_h)
-            lat_h = math.degrees(
-                math.asin(
-                    math.sin(lat_rad) * math.cos(dist_km / R)
-                    + math.cos(lat_rad)
-                    * math.sin(dist_km / R)
-                    * math.cos(az_rad_h)
-                )
-            )
-            lon_h = math.degrees(
-                lon_rad
-                + math.atan2(
-                    math.sin(az_rad_h) * math.sin(dist_km / R) * math.cos(lat_rad),
-                    math.cos(dist_km / R)
-                    - math.sin(lat_rad) * math.sin(math.radians(lat_h)),
-                )
-            )
-
-            color_icono = "orange" if elev_h > 0 else "#222222"
-            icono_emoji = "☀️" if elev_h >= 0 else "🌙"
-
-            estado_txt = "Day" if elev_h >= 0 else "Night"
-            
-            h_local_loop = (float(h) + offset_total) % 24
-            hl_h = int(h_local_loop)
-            ml_h = int(round((h_local_loop - hl_h) * 60))
-            if ml_h == 60:
-                hl_h = (hl_h + 1) % 24
-                ml_h = 0
-
-            hora_local_loop_str = f"{hl_h:02d}:{ml_h:02d}"
-            utc_loop_str = f"{h:02d}:00"
-            utc_hm_label = f"{h:02d}:00"
-
-            if 0 <= azim_h <= 90:
-                az_ew_l = 90 - azim_h
-                ref_ew_l = "NE"
-            elif 90 < azim_h <= 180:
-                az_ew_l = azim_h - 90
-                ref_ew_l = "SE"
-            elif 180 < azim_h <= 270:
-                az_ew_l = 270 - azim_h
-                ref_ew_l = "SW"
-            else:
-                az_ew_l = azim_h - 270
-                ref_ew_l = "NW"
-
-            es_hora_actual = h == hora_slider_utc
-            tam_icono = 32 if es_hora_actual else 22
-            borde_icono = "3px solid red" if es_hora_actual else "2px solid #222"
-            z_index_val = 1005 if es_hora_actual else 1000
-
-            html_sol_anim = f"""
-            <div style="position: relative; width: {tam_icono}px; height: {tam_icono}px; left: -{tam_icono / 2}px; top: -{tam_icono / 2}px; z-index: {z_index_val};">
-                <div style="position: absolute; width: {tam_icono - 4}px; height: {tam_icono - 4}px; background-color: {color_icono};
-                            border-radius: 50%; border: {borde_icono}; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-                            display: flex; align-items: center; justify-content: center; font-size: 11px;">
-                        {icono_emoji}
-                    </div>
-                    <div style="position: absolute; top: 50%; left: {tam_icono + 4}px; transform: translateY(-50%);
-                            color: #222; font-size: 10px; white-space: nowrap; font-weight: bold; font-family: sans-serif;
-                            text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;">
-                        {utc_hm_label}
-                    </div>
-                </div>
-                """
-
-            folium.Marker(
-                [lat_h, lon_h],
-                tooltip=folium.Tooltip(
-                    f"""
-                    <div style="font-size: 12px; font-family: sans-serif; line-height: 1.4;">
-                        <b>Local Time:</b> {hora_local_loop_str}<br>
-                        <b>UTC:</b> {utc_loop_str}<br>
-                        <b>Azimuth:</b> {azim_h:.2f}°<br>
-                        <b>Elevation:</b> {elev_h:.2f}°<br>
-                        <b>Angle E/W:</b> {az_ew_l:.2f}° {ref_ew_l}<br>
-                        <b>Status:</b> {estado_txt}
-                    </div>
-                    """,
-                ),
-                icon=folium.DivIcon(
-                    html=html_sol_anim,
-                    icon_size=(tam_icono, tam_icono),
-                    icon_anchor=(0, 0),
-                ),
-            ).add_to(mapa_animado)
 
         folium.Marker(
             [st.session_state.lat, st.session_state.lon],
@@ -2433,7 +2373,6 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign"),
         ).add_to(mapa_animado)
 
-        # Contenedor anclado para el Mapa 2
         st.markdown('<div class="map-wrapper">', unsafe_allow_html=True)
         
         st.markdown(f"""
@@ -2496,9 +2435,16 @@ with tab4:
             m_utc_int_d = 0
         utc_time_str_dome = f"{h_utc_int_d:02d}:{m_utc_int_d:02d}"
 
-        dst_actual_dome = es_horario_verano(fecha_tab4, st.session_state.lon)
-        offset_val_dome = st.session_state.get("offset_sidebar", 1)
-        offset_total_dome = offset_val_dome + (1 if dst_actual_dome else 0)
+        # ---------------------------------------------------------
+        # CÁLCULO ROBUSTO DE ZONA HORARIA Y OFFSET REAL (CORREGIDO)
+        # ---------------------------------------------------------
+        tz_str_dome = tf.timezone_at(lat=st.session_state.lat, lng=st.session_state.lon)
+        local_tz_dome = pytz.timezone(tz_str_dome) if tz_str_dome else pytz.utc
+        
+        # Simulación
+        dt_simulacion = datetime(fecha_tab4.year, fecha_tab4.month, fecha_tab4.day, h_utc_int_d, m_utc_int_d)
+        dt_sim_local = local_tz_dome.localize(dt_simulacion, is_dst=None) if dt_simulacion.tzinfo is None else dt_simulacion.astimezone(local_tz_dome)
+        offset_total_dome = dt_sim_local.utcoffset().total_seconds() / 3600.0
 
         h_local_d = (h_sel_anim_d + offset_total_dome) % 24
         hl_a_d = int(h_local_d)
@@ -2508,8 +2454,10 @@ with tab4:
             ml_a_d = 0
         local_time_str_dome = f"{hl_a_d:02d}:{ml_a_d:02d}"
 
-        dst_real = es_horario_verano(fecha_real_hoy, st.session_state.lon)
-        offset_real_total = offset_val_dome + (1 if dst_real else 0)
+        # Tiempo real
+        dt_real_local = ahora_utc.astimezone(local_tz_dome)
+        offset_real_total = dt_real_local.utcoffset().total_seconds() / 3600.0
+        
         h_local_real_val = (h_actual_exacta + offset_real_total) % 24
         hl_r = int(h_local_real_val)
         ml_r = int(round((h_local_real_val - hl_r) * 60))
@@ -2836,7 +2784,6 @@ with tab4:
             icon=folium.Icon(color="red", icon="info-sign")
         ).add_to(mapa_domo)
 
-        # Contenedor anclado para el Mapa 3 (Domo Polar)
         st.markdown('<div class="map-wrapper">', unsafe_allow_html=True)
         
         st.markdown(f"""
