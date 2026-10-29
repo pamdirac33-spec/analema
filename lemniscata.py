@@ -400,13 +400,14 @@ st.markdown(
 
 st.markdown("---")
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🗺️ Map",
     "☀️ Animated Analema",
     "📊 Polar/Cartesian",
     "⚙️ Advanced Features",
     "🌍 Cities Comparison",
     "⏳ Daylight Hours",
+    "🌑 SolarBoundary Map",
     "ℹ️ Resources/Info",
     "📖 Manual de Usuario"
     ])
@@ -3487,17 +3488,98 @@ with tab6:
 
     components.html(full_html, height=500, scrolling=False)
 
+# ---------------------------------------------------------
+# TAB 7 – SOLAR BOUNDARY MAO
+# ---------------------------------------------------------
+with tab7:
+    st.markdown("### 🌍 Mapa Terminador Día / Noche")
+    st.markdown("Visualiza las zonas de luz y sombra sobre el mismo mapa base que utilizas en la pestaña principal.")
+
+    # Controles temporales independientes
+    col_t_1, col_t_2 = st.columns(2)
+    with col_t_1:
+        dia_terminator = st.slider("Día del Año", 1, 365, value=dia_del_ano_actual if 'dia_del_ano_actual' in locals() else 100, key="term_dia_g")
+    with col_t_2:
+        hora_terminator = st.slider("Hora UTC", 0, 23, value=hora_utc_actual if 'hora_utc_actual' in locals() else 12, key="term_hora_g")
+
+    fecha_term = datetime(year, 1, 1) + timedelta(days=dia_terminator - 1)
+    
+    # ---------------------------------------------------------
+    # REUTILIZANDO EL MISMO MAPA DE GOOGLE DE LA TAB 1
+    # ---------------------------------------------------------
+    url_tile_g = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+    attr_tile_g = "Google Maps Hybrid"
+
+    mapa_terminator = folium.Map(
+        location=[20, 0],
+        zoom_start=2,
+        tiles=url_tile_g,
+        attr=attr_tile_g,
+        zoom_control=True
+    )
+
+    # ---------------------------------------------------------
+    # CÁLCULO DEL POLÍGONO DEL TERMINADOR SOLAR
+    # ---------------------------------------------------------
+    n = dia_terminator
+    declination = 23.45 * math.sin(math.radians(360.0 / 365.0 * (284 + n)))
+    subsolar_lon = 15.0 * (12.0 - hora_terminator)
+
+    puntos_noche = []
+    for lon in range(-180, 181, 2):
+        delta_lon = math.radians(lon - subsolar_lon)
+        if abs(math.tan(math.radians(declination))) > 0.0001:
+            lat_term = math.degrees(math.atan(-math.cos(delta_lon) / math.tan(math.radians(declination))))
+        else:
+            lat_term = 0.0
+            
+        if declination >= 0:
+            puntos_noche.append([max(-85.0, lat_term), float(lon)])
+        else:
+            puntos_noche.append([min(85.0, lat_term), float(lon)])
+
+    if declination >= 0:
+        poligono_sombra = [[-90, -180]] + puntos_noche + [[-90, 180]]
+    else:
+        poligono_sombra = [[90, -180]] + puntos_noche + [[90, 180]]
+
+    # Capa de sombra nocturna semitransparente sobre el mapa de Google
+    folium.Polygon(
+        locations=poligono_sombra,
+        color="none",
+        fill=True,
+        fill_color="#000000",
+        fill_opacity=0.4,
+        tooltip="Área Nocturna"
+    ).add_to(mapa_terminator)
+
+    # Marcador del punto subsolar
+    lon_ajustada = (subsolar_lon + 180) % 360 - 180
+    folium.Marker(
+        location=[declination, lon_ajustada],
+        popup=f"Punto Subsolar<br>Lat: {declination:.2f}°",
+        icon=folium.Icon(color="orange", icon="sun-o", prefix="fa")
+    ).add_to(mapa_terminator)
+
+    # Renderizar en Streamlit de forma idéntica a la Tab 1
+    st.markdown('<div class="map-wrapper">', unsafe_allow_html=True)
+    st_folium(mapa_terminator, width=None, height=600, key="mapa_terminator_google_style")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.info(f"📅 Fecha simulada: **{fecha_term.strftime('%d.%m.%Y')}** | ⏰ Hora UTC: **{hora_terminator:02d}:00**")
     
 # ---------------------------------------------------------
-# TAB 7 – RESOURCES / INFO & MBSE mySISL MODEL
+# TAB 8 – RESOURCES / INFO & MBSE mySISL MODEL
 # ---------------------------------------------------------
-with tab7:  
+with tab8:  
     # Sección "Acerca de la aplicación" siempre disponible
     st.markdown("""
     ### ℹ️ About Analema App
-    * **Script created by:** dJoZeR - Ingolstadt, Agosto 2026
+    * **Script by:** dJoZeR - Ingolstadt, Agosto 2026
     * **Created with the help of:** Copilot and Gemini
     * **Built on the original idea by:** [SunEarthTools](https://www.sunearthtools.com/)
+    * **Also visit:** [ShadeMap](https://shademap.app/@48.77552,11.48841,18.73263z,1793275483286t,0b,0p,0m)
+    * **And:** [academo](https://academo.org/demos/day-night-terminator/)
     """, unsafe_allow_html=True)
 
     st.markdown("---")
@@ -3540,9 +3622,9 @@ with tab7:
     st.info("This conceptual model describes the object-oriented and functional architecture of the solar analysis tool.")
 
 # ---------------------------------------------------------
-# TAB 8 – MANUAL DE USUARIO Y FUNDAMENTOS TEÓRICOS
+# TAB 9 – MANUAL DE USUARIO Y FUNDAMENTOS TEÓRICOS
 # ---------------------------------------------------------
-with tab8:
+with tab9:
     st.markdown("## 📖 Manual de Usuario")
     st.markdown(
         "Bienvenido al manual de usuario oficial de la aplicación. Esta guía detalla el fundamento astronómico "
@@ -3585,15 +3667,16 @@ with tab8:
     # --- SECCIÓN 2: GUÍA POR PESTAÑAS Y GRÁFICAS ---
     st.markdown("### 🗂️ Descripción Funcional por Pestañas")
 
-    tab_m1, tab_m2, tab_m3, tab_m4, tab_m5, tab_m6, tab_m7, tab_m8 = st.tabs([
+    tab_m1, tab_m2, tab_m3, tab_m4, tab_m5, tab_m6, tab_m7, tab_m8, tab_m9 = st.tabs([
         "Tab 1: Mapa", 
         "Tab 2: Analema Animada", 
         "Tab 3: Polar/Cartesiano", 
         "Tab 4: Avanzado",
         "Tab 5: Comparación",
         "Tab 6: Horas de Luz",
-        "Tab 7: Recursos",
-        "Tab 8: Manual"
+        "Tab 7: Mapa Terminador Dìa/Noche",
+        "Tab 8: Recursos",
+        "Tab 9: Manual"
     ])
 
     with tab_m1:
@@ -3663,7 +3746,20 @@ with tab8:
         """)
 
     with tab_m7:
-        st.markdown("#### ℹ️ Tab 7 – Resources/Info & MBSE Model")
+        st.markdown("#### 🌑 Tab 7 - Terminador Solar (Línea Día/Noche)")
+        st.markdown("""
+        * **Propósito:** La pestaña **Terminator Solar** implementa una simulación geoespacial basada en trigonometría esférica 
+        que calcula en tiempo real la línea de separación entre la mitad iluminada (día) y la mitad oscura (noche) del planeta, 
+        inspirada en el modelo interactivo de *Academo*.
+        
+        * **Fundamento Teórico:**
+          * **Declinación Solar ($\delta$):** Varía a lo largo del año según el día del año ($n$), determinando la inclinación de los rayos solares respecto al ecuador terrestre.
+          * **Longitud Subsolar:** Se calcula en función de la hora UTC seleccionada ($15^{\\circ}$ por cada hora de diferencia respecto al meridiano de Greenwich), indicando el punto exacto donde el Sol se encuentra en el cenit.
+          * **Sombra Nocturna:** Mediante un polígono geodésico proyectado sobre el mapa híbrido de Google, se sombrea de manera translúcida la región del planeta que se encuentra en penumbra u oscuridad.
+        """)
+
+    with tab_m8:
+        st.markdown("#### ℹ️ Tab 8 – Resources/Info & MBSE Model")
         st.markdown("""
         * **Propósito:** Información de autoría, metadatos del proyecto y especificación formal de la arquitectura del sistema.
         * **Características:**
@@ -3671,8 +3767,8 @@ with tab8:
           * **Modelo MBSE mySISL:** Mediante un checkbox interactivo, despliega la arquitectura de bloques orientada a objetos del sistema (*UI_Subsystem*, *Calculation_Engine*, *External_Services*, *Visualization_Engine*).
         """)
 
-    with tab_m8:
-        st.markdown("#### 📖 Tab 8 – Manual de Usuario")
+    with tab_m9:
+        st.markdown("#### 📖 Tab 9 – Manual de Usuario")
         st.markdown("""
         * **Propósito:** Documentación interactiva integrada dentro de la propia aplicación para guiar al usuario en la interpretación de los modelos solares, fórmulas astronómicas y el uso operativo de todas las pestañas.
         """)
