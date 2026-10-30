@@ -407,7 +407,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "⚙️ Advanced Features",
     "🌍 Cities Comparison",
     "⏳ Daylight Hours",
-    "🌑 SolarBoundary Map",
+    "🌓 SolarBoundary Map",
     "ℹ️ Resources/Info",
     "📖 Manual de Usuario"
     ])
@@ -3491,39 +3491,18 @@ with tab6:
 # ---------------------------------------------------------
 # TAB 7 – SOLAR BOUNDARY MAO
 # ---------------------------------------------------------
-with tab7:
-    st.markdown("### 🌍 Mapa Terminador Día / Noche")
-    st.markdown("Visualiza las zonas de luz y sombra sobre el mismo mapa base que utilizas en la pestaña principal.")
-
-    # Controles temporales independientes
-    col_t_1, col_t_2 = st.columns(2)
-    with col_t_1:
-        dia_terminator = st.slider("Día del Año", 1, 365, value=dia_del_ano_actual if 'dia_del_ano_actual' in locals() else 100, key="term_dia_g")
-    with col_t_2:
-        hora_terminator = st.slider("Hora UTC", 0, 23, value=hora_utc_actual if 'hora_utc_actual' in locals() else 12, key="term_hora_g")
-
+# 1. Función auxiliar cacheada para calcular el terminador y los datos del marcador solar
+@st.cache_data
+def fn_calcular_terminator(dia_terminator, hora_str, year, lat_actual, lon_actual):
     fecha_term = datetime(year, 1, 1) + timedelta(days=dia_terminator - 1)
-    
-    # ---------------------------------------------------------
-    # REUTILIZANDO EL MISMO MAPA DE GOOGLE DE LA TAB 1
-    # ---------------------------------------------------------
-    url_tile_g = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-    attr_tile_g = "Google Maps Hybrid"
-
-    mapa_terminator = folium.Map(
-        location=[20, 0],
-        zoom_start=2,
-        tiles=url_tile_g,
-        attr=attr_tile_g,
-        zoom_control=True
-    )
-
-    # ---------------------------------------------------------
-    # CÁLCULO DEL POLÍGONO DEL TERMINADOR SOLAR
-    # ---------------------------------------------------------
     n = dia_terminator
     declination = 23.45 * math.sin(math.radians(360.0 / 365.0 * (284 + n)))
-    subsolar_lon = 15.0 * (12.0 - hora_terminator)
+    
+    # Convertir "HH:MM" a hora decimal exacta
+    partes = hora_str.split(":")
+    hora_decimal = int(partes[0]) + (int(partes[1]) / 60.0)
+    
+    subsolar_lon = 15.0 * (12.0 - hora_decimal)
 
     puntos_noche = []
     for lon in range(-180, 181, 2):
@@ -3542,8 +3521,75 @@ with tab7:
         poligono_sombra = [[-90, -180]] + puntos_noche + [[-90, 180]]
     else:
         poligono_sombra = [[90, -180]] + puntos_noche + [[90, 180]]
+        
+    lon_ajustada = (subsolar_lon + 180) % 360 - 180
 
-    # Capa de sombra nocturna semitransparente sobre el mapa de Google
+    # Azimuth local usando tu función spa
+    _, azim_sol = spa(fecha_term, lat_actual, lon_actual, hora_decimal)
+
+    return fecha_term, declination, lon_ajustada, poligono_sombra, azim_sol
+
+
+# 2. Fragmento optimizado con elevation y marcador visible y claro
+@st.fragment
+def render_solar_boundary_map():
+    st.markdown("### 🌍 Mapa Terminador Día / Noche")
+    st.markdown("Visualiza las zonas de luz y sombra de forma optimizada.")
+
+    # Generar la lista de opciones de tiempo de 10 en 10 minutos
+    lista_horas = []
+    for h in range(24):
+        for m in range(0, 60, 10):
+            lista_horas.append(f"{h:02d}:{m:02d}")
+
+    ahora_utc = datetime.now(pytz.utc)
+    dia_actual_default = ahora_utc.timetuple().tm_yday
+    
+    minuto_redondeado = (ahora_utc.minute // 10) * 10
+    if minuto_redondeado >= 60:
+        minuto_redondeado = 50
+    hora_actual_str = f"{ahora_utc.hour:02d}:{minuto_redondeado:02d}"
+    
+    if hora_actual_str not in lista_horas:
+        hora_actual_str = "12:00"
+
+    if "term_map_center" not in st.session_state:
+        st.session_state.term_map_center = [20, 0]
+    if "term_map_zoom" not in st.session_state:
+        st.session_state.term_map_zoom = 2
+
+    col_sliders, col_info = st.columns([1.2, 1], gap="medium")
+
+    with col_sliders:
+        dia_terminator = st.slider("Día del Año", 1, 365, value=dia_actual_default, key="term_dia_g_frag")
+        hora_seleccionada_str = st.select_slider(
+            "Hora UTC (saltos de 10 min)",
+            options=lista_horas,
+            value=hora_actual_str,
+            key="term_hora_select_frag"
+        )
+
+    lat_act = st.session_state.get("lat", 48.77568)
+    lon_act = st.session_state.get("lon", 11.48840)
+
+    fecha_term, declination, lon_ajustada, poligono_sombra, azim_sol = fn_calcular_terminator(
+        dia_terminator, hora_seleccionada_str, globals().get('year', 2026), lat_act, lon_act
+    )
+
+    with col_info:
+        st.info(f"📅 Fecha simulada: **{fecha_term.strftime('%d.%m.%Y')}** (Día {dia_terminator})\n\n⏰ UTC: **{hora_seleccionada_str}**")
+
+    url_tile_g = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+    attr_tile_g = "Google Maps Hybrid"
+
+    mapa_terminator = folium.Map(
+        location=st.session_state.term_map_center,
+        zoom_start=st.session_state.term_map_zoom,
+        tiles=url_tile_g,
+        attr=attr_tile_g,
+        zoom_control=True
+    )
+
     folium.Polygon(
         locations=poligono_sombra,
         color="none",
@@ -3553,21 +3599,50 @@ with tab7:
         tooltip="Área Nocturna"
     ).add_to(mapa_terminator)
 
-    # Marcador del punto subsolar
-    lon_ajustada = (subsolar_lon + 180) % 360 - 180
+    # Tooltip completo incluyendo Elevation (90° en el punto subsolar)
+    tooltip_sol = folium.Tooltip(
+        f"""
+        <div style="font-size: 12px; font-family: sans-serif; line-height: 1.4;">
+            <b>☀️ Punto Subsolar</b><br>
+            <b>📅 Día del año:</b> {fecha_term.strftime('%d.%m.%Y')} ({dia_terminator})<br>
+            <b>⏰ UTC:</b> {hora_seleccionada_str}<br>
+            <b>📍 Lat / Lon:</b> {declination:.2f}°, {lon_ajustada:.2f}°<br>
+            <b>🧭 Azimuth:</b> {azim_sol:.2f}°
+            <b>📈 Elevation:</b> 90.00° (Cenit)<br>
+        </div>
+        """,
+        permanent=False,
+        sticky=True
+    )
+
+    # Usamos un marcador con icono limpio (star o sun) y color dorado para evitar que salga negro
     folium.Marker(
         location=[declination, lon_ajustada],
-        popup=f"Punto Subsolar<br>Lat: {declination:.2f}°",
-        icon=folium.Icon(color="orange", icon="sun-o", prefix="fa")
+        tooltip=tooltip_sol,
+        icon=folium.Icon(color="orange", icon="sun", prefix="fa")
     ).add_to(mapa_terminator)
 
-    # Renderizar en Streamlit de forma idéntica a la Tab 1
     st.markdown('<div class="map-wrapper">', unsafe_allow_html=True)
-    st_folium(mapa_terminator, width=None, height=600, key="mapa_terminator_google_style")
+    map_output = st_folium(
+        mapa_terminator, 
+        width=None, 
+        height=600, 
+        key="mapa_terminator_google_style",
+        returned_objects=["center", "zoom"]
+    )
     st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.info(f"📅 Fecha simulada: **{fecha_term.strftime('%d.%m.%Y')}** | ⏰ Hora UTC: **{hora_terminator:02d}:00**")
-    
+
+    if map_output and map_output.get("center"):
+        st.session_state.term_map_center = [map_output["center"]["lat"], map_output["center"]["lng"]]
+    if map_output and map_output.get("zoom"):
+        st.session_state.term_map_zoom = map_output["zoom"]
+
+
+# 3. Llamada dentro de la pestaña 7 principal
+with tab7:
+    render_solar_boundary_map()
+
+
 # ---------------------------------------------------------
 # TAB 8 – RESOURCES / INFO & MBSE mySISL MODEL
 # ---------------------------------------------------------
@@ -3674,7 +3749,7 @@ with tab9:
         "Tab 4: Avanzado",
         "Tab 5: Comparación",
         "Tab 6: Horas de Luz",
-        "Tab 7: Mapa Terminador Dìa/Noche",
+        "Tab 7: Mapa Día/Noche",
         "Tab 8: Recursos",
         "Tab 9: Manual"
     ])
@@ -3746,15 +3821,15 @@ with tab9:
         """)
 
     with tab_m7:
-        st.markdown("#### 🌑 Tab 7 - Terminador Solar (Línea Día/Noche)")
-        st.markdown("""
+        st.markdown("#### 🌓 Tab 7 - Terminador Solar (Línea Día/Noche)")
+        st.markdown(r"""
         * **Propósito:** La pestaña **Terminator Solar** implementa una simulación geoespacial basada en trigonometría esférica 
-        que calcula en tiempo real la línea de separación entre la mitad iluminada (día) y la mitad oscura (noche) del planeta, 
-        inspirada en el modelo interactivo de *Academo*.
+          que calcula en tiempo real la línea de separación entre la mitad iluminada (día) y la mitad oscura (noche) del planeta, 
+          inspirada en el modelo interactivo de *Academo*.
         
         * **Fundamento Teórico:**
           * **Declinación Solar ($\delta$):** Varía a lo largo del año según el día del año ($n$), determinando la inclinación de los rayos solares respecto al ecuador terrestre.
-          * **Longitud Subsolar:** Se calcula en función de la hora UTC seleccionada ($15^{\\circ}$ por cada hora de diferencia respecto al meridiano de Greenwich), indicando el punto exacto donde el Sol se encuentra en el cenit.
+          * **Longitud Subsolar:** Se calcula en función de la hora UTC seleccionada ($15^{\circ}$ por cada hora de diferencia respecto al meridiano de Greenwich), indicando el punto exacto donde el Sol se encuentra en el cenit.
           * **Sombra Nocturna:** Mediante un polígono geodésico proyectado sobre el mapa híbrido de Google, se sombrea de manera translúcida la región del planeta que se encuentra en penumbra u oscuridad.
         """)
 
